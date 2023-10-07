@@ -1,7 +1,7 @@
 /*
  * main.c - p18clock source file
  *
- * Copyright (C) 2011  Javier L. Gomez
+ * Copyright (C) 2011-2023  Javier Lopez-Gomez
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -79,8 +79,14 @@ LEDMTX_FRAMEBUFFER_RES(28)
 #define CLASS_INPUT 0x00
 #define CLASS_RTC 0x40
 
+/// A circular buffer is used to communicate ISR code with the main loop.  Data
+/// is typically queued from an ISR and dispatched from the main loop. The 2 MSb
+/// of a message are reserved for the message class, i.e., a tag that groups
+/// messages according to their semantics.
 #define MESSAGE_CLASS(m) (m & 0xc0)
 
+/// The year has changed and `_days_per_month[1]` may need updating per definition of
+/// leap year
 #define YEARCHG (CLASS_RTC | 0x00)
 /// The corresponding button has been pushed
 #define B_MODE (CLASS_INPUT | 0x08)
@@ -99,12 +105,14 @@ DEF_INTLOW(_low_int)
 DEF_HANDLER(SIG_TMR0, _tmr0_handler)
 END_DEF
 
+/// Number of days for each month of the year in the Gregorian calendar
 static unsigned char _days_per_month[] = {31, 28, 31, 30, 31, 30,
                                           31, 31, 30, 31, 30, 31};
 
 #define LEAP_YEAR(year)                                                        \
   ((((year % 4) == 0) && ((year % 100) != 0)) || ((year % 400) == 0))
 
+/// Struct that holds the current date and time
 volatile struct {
   unsigned char sec;
   unsigned char min;
@@ -114,6 +122,7 @@ volatile struct {
   unsigned int year;
 } _time = {0, 0, 0, 1, 1, 1970};
 
+/// Struct that holds information about the alarm
 static struct {
   unsigned ena : 1;
   unsigned nack : 1;
@@ -200,7 +209,11 @@ SIGHANDLERNAKED(_tmr1_handler)
 // clang-format on
 
 #define INT0_UNMASK_TIMEOUT 7
-
+/// An INT0 interrupt is triggered externally when PORTB value changes.  PORTB
+/// is indirectly driven by push buttons, an thus requires some debouncing
+/// logic. In particular, the INT0 handler below masks INT0 interrupts for some
+/// time after which they are enabled again (see `_tmr0_handler`).  This amount
+/// of time is given by `INT0_UNMASK_TIMEOUT`.
 static volatile unsigned char _int0_timeout;
 
 // clang-format off
@@ -270,8 +283,10 @@ SIGHANDLERNAKED(_tmr0_handler)
 #define CCP1_R 0x066
 #define CCP1_T2PS 0x01
 
+/// Carry out initialization tasks, e.g. set the `TRISx` registers and configure
+/// peripherals
 void uc_init(void) {
-  OSCCONbits.IDLEN = 1; /* sleep -> CPU idle */
+  OSCCONbits.IDLEN = 1; // Device enters idle mode on `sleep` instruction
 
   TRISA = 0xc1;
   PORTA = 0x00;
@@ -279,7 +294,7 @@ void uc_init(void) {
   PORTB = 0x00;
   TRISC = 0xfb;
   PORTC = 0x00;
-  INTCON2bits.RBPU = 1; /* disable RBx pullup */
+  INTCON2bits.RBPU = 1; // Disable RBx pullup
 
   lm35_init();
 
@@ -294,14 +309,16 @@ void uc_init(void) {
   CCP1CON = (CCP1_R & 0x03) << 4;
   T2CON = (CCP1_T2PS & 0x03);
 
-  ledmtx_init(LEDMTX_INIT_CLEAR | LEDMTX_INIT_TMR0, 32, 7, 0xe9, 0xae,
-              0x88); /* 32x7@50hz (Fosc=8mhz) */
+  // 32x7 display @ 50 Hz (given a Fosc of 8 MHz for the primary oscillator)
+  ledmtx_init(LEDMTX_INIT_CLEAR | LEDMTX_INIT_TMR0, 32, 7, 0xe9, 0xae, 0x88);
 
-  INTCON2bits.INTEDG0 = 0; /* falling edge */
+  INTCON2bits.INTEDG0 = 0; // INT0 triggered on falling edge
   INTCONbits.INT0IE = 1;
 }
 
-/* Tomohiko Sakamoto day_of_week routine */
+/// Return the day of the week for the given date, i.e. 0 - Sunday, 1 - Monday,
+/// ..., 6 - Saturday. Implements the Tomohiko Sakamoto's day-of-the-week
+/// algorithm.
 char day_of_week(unsigned char mday, unsigned char mon, unsigned int year) {
   static const char t[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
   year -= mon < 3;
@@ -309,6 +326,33 @@ char day_of_week(unsigned char mday, unsigned char mon, unsigned int year) {
          7;
 }
 
+// clang-format off
+/// Enumeration of the possible states of the FSM below.  Transition between
+/// main states is triggered by B_MODE; B_SET transitions between sub-states,
+/// if applicable.
+///                                             B_MODE
+///        ,-----------------------------------------------------------------------------------.
+///       v                                                                                    `|
+/// +------------+        +------------+        +------------+        +-------------+        +------------+
+/// | STATE_TIME | -----> | STATE_DATE | -----> | STATE_TEMP | -----> | STATE_ALARM | -----> | STATE_AUTO |
+/// +------------+ B_MODE +------------+ B_MODE +------------+ B_MODE +-------------+ B_MODE +------------+
+///    |       ^             |       ^             |      ^              |        ^
+///    | B_SET  \            | B_SET  \            | B_SET \             | B_SET  |
+///    v         `           v         `           v        `            v         `
+/// +----------+  `       +----------+  `       +---------+  `        +----------+  `
+/// | _SETHOUR |  |       | _SETMDAY |  |       | _SETVDD |  |        | _SETHOUR |  |
+/// +----------+  |       +----------+  |       +---------+  |        +----------+  |
+///    | B_SET    |          | B_SET    |          | B_SET   |           | B_SET    |
+///    v          |          v          |          v         |           v          |
+/// +----------+  ,       +----------+  |       +---------+  ,        +----------+  ,
+/// | _SETMIN  |--        | _SETMON  |  |       | _SETOFF |--         | _SETMIN  |--
+/// +----------+          +----------+  |       +---------+           +----------+
+///                          | B_SET    |
+///                          v          |
+///                       +----------+  ,
+///                       | _SETYEAR |--
+///                       +----------+
+// clang-format on
 #define STATE_TIME 0x00
 #define STATE_DATE 0x01
 #define STATE_TEMP 0x02
@@ -324,12 +368,24 @@ char day_of_week(unsigned char mday, unsigned char mon, unsigned int year) {
 #define STATE_ALARM_SETHOUR 0x0c
 #define STATE_ALARM_SETMIN 0x0d
 
+/// The current state of the FSM
 static unsigned char _state = STATE_TIME;
 
+/// A single descriptor (and NUL-terminated string) is used for scrolling text.
 static char _tmpstr[32];
 static struct ledmtx_scrollstr_desc _scroll_desc = {
     1, 1,    ledmtx_scrollstr_step, 32,  0, 0, (__data char *)_tmpstr, 0,
     1, 0x80, ledmtx_scrollstr_stop, 0x00};
+
+/// Schedule a text for asynchronous scroll (see Timer0 handler), and wait for
+/// its finalization
+#define SYNC_SCROLL(d)                                                         \
+  do {                                                                         \
+    ledmtx_scrollstr_start(&d);                                                \
+    while (d.str[d.i] != 0 || d.charoff != 0)                                  \
+      IDLE();                                                                  \
+    ledmtx_scrollstr_reset(&d);                                                \
+  } while (0)
 
 #define ENABLE_BUZZER()                                                        \
   do {                                                                         \
@@ -357,13 +413,11 @@ void alarm(void) {
   pstate &= 0x07;
 }
 
-/* idle_alarm counter overflows in 0.125s */
+/* `idle_alarm()` counter overflows in ~0.125s */
 #define IDLE_ALARM__COUNTER_PRELOAD 0xd4
-
 void idle_alarm(void) {
   static unsigned char counter = IDLE_ALARM__COUNTER_PRELOAD;
 
-  /* trigger alarm? */
   if (_alarm.ena && _alarm.hour == _time.hour && _alarm.min == _time.min) {
     _alarm.ena = 0;
     _alarm.nack = 1;
@@ -374,6 +428,14 @@ void idle_alarm(void) {
   }
 }
 
+#define ACK_ALARM()                                                            \
+  do {                                                                         \
+    DISABLE_BUZZER();                                                          \
+    _alarm.nack = 0;                                                           \
+  } while (0)
+
+/// The default 'idle' routine, that checks also if the alarm should be
+/// triggered
 #define IDLE_ROUTINE() idle_alarm()
 #define IDLE()                                                                 \
   do {                                                                         \
@@ -381,18 +443,13 @@ void idle_alarm(void) {
     Sleep();                                                                   \
   } while (0)
 
-#define SYNC_SCROLL(d)                                                         \
-  do {                                                                         \
-    ledmtx_scrollstr_start(&d);                                                \
-    while (d.str[d.i] != 0 || d.charoff != 0)                                  \
-      IDLE();                                                                  \
-    ledmtx_scrollstr_reset(&d);                                                \
-  } while (0)
-
 #define ALTERNATE(arg1, arg2)                                                  \
   ((TMR1H & 0x40) && (arg != CLASS_INPUT) ? arg1 : arg2)
 
-/* state machine routines */
+/// ==== Functions that implement behavior for each FSM state ====
+/// The `input` parameter carries user input that may trigger a state change.
+/// These functions are also called periodically with input == NULL; in this
+/// case, only the display should be refreshed.
 
 /* __wparam uncompatible with function pointers */
 void S_time(char arg, __data char *input) /* __wparam */
@@ -674,15 +731,6 @@ static state_func_t __code _state_fn[] = {
     S_date_setmon,   S_date_setyear, S_temp_setvdd, S_temp_setoff,
     S_alarm_sethour, S_alarm_setmin};
 
-#define ACK_ALARM()                                                            \
-  do {                                                                         \
-    DISABLE_BUZZER();                                                          \
-    _alarm.nack = 0;                                                           \
-  } while (0)
-
-/* rcounter overflow in 0.5s */
-#define RCOUNTER_PRELOAD 0x51
-
 void main(void) {
   static char c;
   static unsigned char rcounter = 0xff;
@@ -700,8 +748,8 @@ void main(void) {
   /* main loop */
   while (1) {
     if (++rcounter == 0) {
-      rcounter = RCOUNTER_PRELOAD;
-      _state_fn[_state](MESSAGE_CLASS(c), NULL); /* NULL -> refresh display */
+      rcounter = 0x51; // Should overflow in roughly 0.5s
+      _state_fn[_state](MESSAGE_CLASS(c), NULL);
     }
 
     c = rbuf_get(_mbuf);
@@ -718,8 +766,8 @@ void main(void) {
         if (_alarm.nack) {
           ACK_ALARM();
         } else {
-          _state_fn[_state](MESSAGE_CLASS(c), &c); /* input to state machine */
-          rcounter = 0xff;                         /* force refresh */
+          _state_fn[_state](MESSAGE_CLASS(c), &c);
+          rcounter = 0xff; // Forces refresh on next iteration
         }
         break;
       }
