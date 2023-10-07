@@ -1,7 +1,7 @@
 /*
- * lm35.h - National Semiconductor LM35 header
+ * lm35.h - header for LM35-related routines
  *
- * Copyright (C) 2011  Javier L. Gomez
+ * Copyright (C) 2011-2023  Javier Lopez-Gomez
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,12 +21,20 @@
 #ifndef __LM35_H__
 #define __LM35_H__
 
-extern int lm35_vdd(void);
-
 extern int _lm35vdd;
 extern int _lm35off;
 
+/// Leverage the HLVD circuitry (Section 24.0 of the P18F2550 datasheet) to
+/// probe for the Vdd voltage. The returned value is a fair approximation of the
+/// input voltage in units of 0.01v.
+extern int lm35_vdd(void);
+
+/// Perform required initialization for measuring the output voltage of an
+/// external LM35 temperature sensor.
 extern void lm35_init(void);
+
+/// Read the value of an external LM35 temperature sensor.  The returned value
+/// is in degrees Celsius.
 extern int lm35_get(void);
 
 #endif // __LM35_H__
