@@ -31,21 +31,41 @@
 #include <lm35.h>
 #include <rbuf.h>
 
-#pragma config XINST=OFF
+/* CONFIG1L */
+#pragma config USBDIV = 1 // USB clock source comes directly from the primary
+                          // oscillator block with no postscale
+#pragma config CPUDIV =                                                        \
+    OSC1_PLL2             // [Primary Oscillator Src: /1][96 MHz PLL Src: /2]
+#pragma config PLLDIV = 2 // Divide by 2 (8 MHz oscillator input)
 
-__CONFIG(__CONFIG1L, _USBPLL_CLOCK_SRC_FROM_OSC1_OSC2_1L
-                         &_CPUDIV__OSC1_OSC2_SRC___1__96MHZ_PLL_SRC___2__1L
-                             &_PLLDIV_DIVIDE_BY_2__8MHZ_INPUT__1L);
-__CONFIG(__CONFIG1H, _OSC_HS__USB_HS_1H);
-__CONFIG(__CONFIG2L, _BODEN_CONTROLLED_WITH_SBOREN_BIT_2L &_BODENV_2_7V_2L);
-__CONFIG(__CONFIG2H, _WDT_DISABLED_CONTROLLED_2H);
-__CONFIG(
-    __CONFIG3H,
-    _CCP2MUX_RC1_3H &_PBADEN_PORTB_4_0__CONFIGURED_AS_DIGITAL_I_O_ON_RESET_3H
-        &_LPT1OSC_OFF_3H &_MCLRE_MCLR_ON_RE3_OFF_3H);
-__CONFIG(__CONFIG4L, _STVR_ON_4L &_LVP_OFF_4L &_ENHCPU_OFF_4L &_BACKBUG_OFF_4L);
+/* CONFIG1H */
+#pragma config FOSC = HS // HS oscillator (HS)
 
-/* IDLOC0:IDLOC1:IDLOC2 -> firmware version */
+/* CONFIG2L */
+#pragma config BOR = SOFT // Brown-out Reset enabled and controlled by software
+                          // (SBOREN is enabled)
+#pragma config BORV = 2   // Setting 1 2.79V
+
+/* CONFIG2H */
+#pragma config WDT = OFF // WDT disabled
+
+/* CONFIG3H */
+#pragma config CCP2MX = ON // CCP2 input/output is multiplexed with RC1
+#pragma config PBADEN =                                                        \
+    OFF // PORTB<4:0> pins are configured as digital I/O on Reset
+#pragma config LPT1OSC = OFF // Timer1 configured for higher power operation
+#pragma config MCLRE = ON    // MCLR pin enabled; RE3 input pin disabled
+
+/* CONFIG4L */
+#pragma config STVREN = ON // Stack full/underflow will cause Reset
+#pragma config LVP = OFF   // Single-Supply ICSP disabled
+#pragma config XINST =                                                         \
+    OFF // Instruction set extension and Indexed Addressing mode disabled
+        // (Legacy mode); XINST not supported in SDCC
+#pragma config DEBUG = OFF // Background debugger disabled, RB6 and RB7
+                           // configured as general purpose I/O
+
+/* The IDLOC0, IDLOC1, and IDLOC2 bytes store the firmware version */
 __CONFIG(__IDLOC0, 0);
 __CONFIG(__IDLOC1, 2);
 __CONFIG(__IDLOC2, 2);
