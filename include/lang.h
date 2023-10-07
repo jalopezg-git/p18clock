@@ -1,7 +1,7 @@
 /*
- * lang.h - language dependent definitions
+ * lang.h - language-dependent string literals
  *
- * Copyright (C) 2011  Javier L. Gomez
+ * Copyright (C) 2011-2023  Javier Lopez-Gomez
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,45 +21,47 @@
 #ifndef __LANG_H__
 #define __LANG_H__
 
+/* English (EN) */
 #if defined(LANG_EN)
-static __code const char *__code _month[] = {"Jan", "Feb", "Mar", "Apr",
-                                             "May", "Jun", "Jul", "Aug",
-                                             "Sep", "Oct", "Nov", "Dec"};
+static __code const char *__code _str_month[] = {"Jan", "Feb", "Mar", "Apr",
+                                                 "May", "Jun", "Jul", "Aug",
+                                                 "Sep", "Oct", "Nov", "Dec"};
 
-static __code const char *__code _day[] = {"Sun", "Mon", "Tue", "Wed",
-                                           "Thu", "Fri", "Sat"};
+static __code const char *__code _str_day[] = {"Sun", "Mon", "Tue", "Wed",
+                                               "Thu", "Fri", "Sat"};
 
-static __code const char *__code _mainstate[] = {"TIME", "DATE", "TEMPERATURE",
+static __code const char *__code _str_state[] = {"TIME", "DATE", "TEMPERATURE",
                                                  "ALARM", "AUTO"};
 
-#define AUTOF "  AUTO<%s>"
-#define INITF "p18clock firmware/%hu.%hu.%hu"
-#define TEMPF " %02u C"
-#define MDAYF "day"
-#define MONF "m "
-#define YEARF "y"
-#define VDDF "V "
-#define OFFF "of"
+#define STR_FMT_AUTO "  AUTO<%s>"
+#define STR_FMT_INIT "p18clock firmware/%hu.%hu.%hu"
+#define STR_FMT_TEMP " %02u C"
+#define STR_FMT_MDAY "day"
+#define STR_FMT_MONTH "m "
+#define STR_FMT_YEAR "y"
+#define STR_FMT_VDD "V "
+#define STR_FMT_OFF "of"
 
+/* Spanish (ES) */
 #elif defined(LANG_ES)
-static __code const char *__code _month[] = {"Ene", "Feb", "Mar", "Abr",
-                                             "May", "Jun", "Jul", "Ago",
-                                             "Sep", "Oct", "Nov", "Dic"};
+static __code const char *__code _str_month[] = {"Ene", "Feb", "Mar", "Abr",
+                                                 "May", "Jun", "Jul", "Ago",
+                                                 "Sep", "Oct", "Nov", "Dic"};
 
-static __code const char *__code _day[] = {"Dom", "Lun", "Mar", "Mie",
-                                           "Jue", "Vie", "Sab"};
+static __code const char *__code _str_day[] = {"Dom", "Lun", "Mar", "Mie",
+                                               "Jue", "Vie", "Sab"};
 
-static __code const char *__code _mainstate[] = {"HORA", "FECHA", "TEMPERATURA",
+static __code const char *__code _str_state[] = {"HORA", "FECHA", "TEMPERATURA",
                                                  "ALARMA", "AUTO"};
 
-#define AUTOF "  AUTO<%s>"
-#define INITF "p18clock firmware/%hu.%hu.%hu"
-#define TEMPF " %02u C"
-#define MDAYF "dia"
-#define MONF "m "
-#define YEARF "a"
-#define VDDF "V "
-#define OFFF "of"
+#define STR_FMT_AUTO "  AUTO<%s>"
+#define STR_FMT_INIT "p18clock firmware/%hu.%hu.%hu"
+#define STR_FMT_TEMP " %02u C"
+#define STR_FMT_MDAY "dia"
+#define STR_FMT_MONTH "m "
+#define STR_FMT_YEAR "a"
+#define STR_FMT_VDD "V "
+#define STR_FMT_OFF "of"
 
 #else
 #error Unsupported language

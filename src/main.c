@@ -82,10 +82,11 @@ LEDMTX_FRAMEBUFFER_RES(28)
 #define MESSAGE_CLASS(m) (m & 0xc0)
 
 #define YEARCHG (CLASS_RTC | 0x00)
-#define PUSHB1 (CLASS_INPUT | 0x08)
-#define PUSHB2 (CLASS_INPUT | 0x0a)
-#define PUSHB3 (CLASS_INPUT | 0x0c)
-#define PUSHB4 (CLASS_INPUT | 0x0e)
+/// The corresponding button has been pushed
+#define B_MODE (CLASS_INPUT | 0x08)
+#define B_SET (CLASS_INPUT | 0x0a)
+#define B_UP (CLASS_INPUT | 0x0c)
+#define B_DOWN (CLASS_INPUT | 0x0e)
 
 DECLARE_RBUF(_mbuf, 32)
 
@@ -98,8 +99,8 @@ DEF_INTLOW(_low_int)
 DEF_HANDLER(SIG_TMR0, _tmr0_handler)
 END_DEF
 
-static unsigned char _monthdays[] = {31, 28, 31, 30, 31, 30,
-                                     31, 31, 30, 31, 30, 31};
+static unsigned char _days_per_month[] = {31, 28, 31, 30, 31, 30,
+                                          31, 31, 30, 31, 30, 31};
 
 #define LEAP_YEAR(year)                                                        \
   ((((year % 4) == 0) && ((year % 100) != 0)) || ((year % 400) == 0))
@@ -155,10 +156,10 @@ SIGHANDLERNAKED(_tmr1_handler)
   clrf		__time+2		; _time.hour=0
   movff		_FSR0H, _POSTDEC1	; push FSR0x
   movff		_FSR0L, _POSTDEC1
-  lfsr		0, __monthdays
+  lfsr		0, __days_per_month
   banksel	__time+4
   decf		__time+4, w
-  movf		_PLUSW0, w, 0		; _monthdays[_time.mon-1] -> WREG
+  movf		_PLUSW0, w, 0		; _days_per_month[_time.mon-1] -> WREG
   banksel	__time+3
   incf		__time+3, f		; _time.mday++
   cpfsgt	__time+3
@@ -399,12 +400,12 @@ void S_time(char arg, __data char *input) /* __wparam */
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
     printf(ALTERNATE("%02hu %02hu", "%02hu:%02hu"), _time.hour, _time.min);
-  } else if (*input == PUSHB1) {
+  } else if (*input == B_MODE) {
     _state = STATE_DATE;
 
-    sprintf(_tmpstr, "  %s", _mainstate[_state]);
+    sprintf(_tmpstr, "  %s", _str_state[_state]);
     SYNC_SCROLL(_scroll_desc);
-  } else if (*input == PUSHB2) {
+  } else if (*input == B_SET) {
     _state = STATE_TIME_SETHOUR;
   }
 }
@@ -416,7 +417,7 @@ void S_date(char arg, __data char *input) /* __wparam */
     LEDMTX_HOME();
     switch (_time.sec & 0x03) {
     case 0:
-      printf(" %s ", _day[day_of_week(_time.mday, _time.mon, _time.year)]);
+      printf(" %s ", _str_day[day_of_week(_time.mday, _time.mon, _time.year)]);
       break;
 
     case 1:
@@ -424,19 +425,19 @@ void S_date(char arg, __data char *input) /* __wparam */
       break;
 
     case 2:
-      printf(" %s ", _month[_time.mon - 1]);
+      printf(" %s ", _str_month[_time.mon - 1]);
       break;
 
     case 3:
       printf(" %04u", _time.year);
       break;
     }
-  } else if (*input == PUSHB1) {
+  } else if (*input == B_MODE) {
     _state = STATE_TEMP;
 
-    sprintf(_tmpstr, "  %s", _mainstate[_state]);
+    sprintf(_tmpstr, "  %s", _str_state[_state]);
     SYNC_SCROLL(_scroll_desc);
-  } else if (*input == PUSHB2) {
+  } else if (*input == B_SET) {
     _state = STATE_DATE_SETMON;
   }
 }
@@ -446,13 +447,13 @@ void S_temp(char arg, __data char *input) /* __wparam */
   (void)arg;
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
-    printf(TEMPF, lm35_get());
-  } else if (*input == PUSHB1) {
+    printf(STR_FMT_TEMP, lm35_get());
+  } else if (*input == B_MODE) {
     _state = STATE_ALARM;
 
-    sprintf(_tmpstr, "  %s", _mainstate[_state]);
+    sprintf(_tmpstr, "  %s", _str_state[_state]);
     SYNC_SCROLL(_scroll_desc);
-  } else if (*input == PUSHB2) {
+  } else if (*input == B_SET) {
     _state = STATE_TEMP_SETVDD;
   }
 }
@@ -467,12 +468,12 @@ void S_alarm(char arg, __data char *input) /* __wparam */
     } else {
       printf("--:--");
     }
-  } else if (*input == PUSHB1) {
+  } else if (*input == B_MODE) {
     _state = STATE_AUTO;
 
-    sprintf(_tmpstr, "  %s", _mainstate[_state]);
+    sprintf(_tmpstr, "  %s", _str_state[_state]);
     SYNC_SCROLL(_scroll_desc);
-  } else if (*input == PUSHB2) {
+  } else if (*input == B_SET) {
     _state = STATE_ALARM_SETHOUR;
   }
 }
@@ -485,7 +486,7 @@ void S_auto(char arg, __data char *input) /* __wparam */
     if ((_time.sec & 0x0f) == 0) {
       pstate = (pstate + 1) & 0x03;
 
-      sprintf(_tmpstr, AUTOF, _mainstate[pstate]);
+      sprintf(_tmpstr, STR_FMT_AUTO, _str_state[pstate]);
       SYNC_SCROLL(_scroll_desc);
     }
 
@@ -506,10 +507,10 @@ void S_auto(char arg, __data char *input) /* __wparam */
       S_alarm(arg, input);
       break;
     }
-  } else if (*input == PUSHB1) {
+  } else if (*input == B_MODE) {
     _state = STATE_TIME;
 
-    sprintf(_tmpstr, "  %s", _mainstate[_state]);
+    sprintf(_tmpstr, "  %s", _str_state[_state]);
     SYNC_SCROLL(_scroll_desc);
   }
 }
@@ -519,14 +520,14 @@ void S_time_sethour(char arg, __data char *input) /* __wparam */
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
     printf(ALTERNATE("  :", "%02hu:"), _time.hour);
-  } else if (*input == PUSHB2) {
+  } else if (*input == B_SET) {
     _state = STATE_TIME_SETMIN;
 
     LEDMTX_HOME();
     printf("%02hu:", _time.hour);
-  } else if (*input == PUSHB3) {
+  } else if (*input == B_UP) {
     _time.hour = (_time.hour == 23) ? 0 : (_time.hour + 1);
-  } else if (*input == PUSHB4) {
+  } else if (*input == B_DOWN) {
     _time.hour = (_time.hour == 0) ? 23 : (_time.hour - 1);
   }
 }
@@ -536,13 +537,13 @@ void S_time_setmin(char arg, __data char *input) /* __wparam */
   if (input == (__data char *)NULL) {
     LEDMTX_GOTO(12, 0);
     printf(ALTERNATE(":  ", ":%02hu"), _time.min);
-  } else if (*input == PUSHB2) {
+  } else if (*input == B_SET) {
     _state = STATE_TIME;
 
     _time.sec = 0;
-  } else if (*input == PUSHB3) {
+  } else if (*input == B_UP) {
     _time.min = (_time.min == 59) ? 0 : (_time.min + 1);
-  } else if (*input == PUSHB4) {
+  } else if (*input == B_DOWN) {
     _time.min = (_time.min == 0) ? 59 : (_time.min - 1);
   }
 }
@@ -551,15 +552,15 @@ void S_date_setmday(char arg, __data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
-    printf(ALTERNATE(MDAYF "  ", MDAYF "%02hu"), _time.mday);
-  } else if (*input == PUSHB2) {
+    printf(ALTERNATE(STR_FMT_MDAY "  ", STR_FMT_MDAY "%02hu"), _time.mday);
+  } else if (*input == B_SET) {
     _state = STATE_DATE;
-  } else if (*input == PUSHB3) {
+  } else if (*input == B_UP) {
     _time.mday =
-        (_time.mday == _monthdays[_time.mon - 1]) ? 1 : (_time.mday + 1);
-  } else if (*input == PUSHB4) {
+        (_time.mday == _days_per_month[_time.mon - 1]) ? 1 : (_time.mday + 1);
+  } else if (*input == B_DOWN) {
     _time.mday =
-        (_time.mday == 1) ? _monthdays[_time.mon - 1] : (_time.mday - 1);
+        (_time.mday == 1) ? _days_per_month[_time.mon - 1] : (_time.mday - 1);
   }
 }
 
@@ -567,12 +568,13 @@ void S_date_setmon(char arg, __data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
-    printf(ALTERNATE(MONF "   ", MONF "%s"), _month[_time.mon - 1]);
-  } else if (*input == PUSHB2) {
+    printf(ALTERNATE(STR_FMT_MONTH "   ", STR_FMT_MONTH "%s"),
+           _str_month[_time.mon - 1]);
+  } else if (*input == B_SET) {
     _state = STATE_DATE_SETYEAR;
-  } else if (*input == PUSHB3) {
+  } else if (*input == B_UP) {
     _time.mon = (_time.mon == 12) ? 1 : (_time.mon + 1);
-  } else if (*input == PUSHB4) {
+  } else if (*input == B_DOWN) {
     _time.mon = (_time.mon == 1) ? 12 : (_time.mon - 1);
   }
 }
@@ -581,16 +583,16 @@ void S_date_setyear(char arg, __data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
-    printf(ALTERNATE(YEARF "    ", YEARF "%04u"), _time.year);
-  } else if (*input == PUSHB2) {
+    printf(ALTERNATE(STR_FMT_YEAR "    ", STR_FMT_YEAR "%04u"), _time.year);
+  } else if (*input == B_SET) {
     _state = STATE_DATE_SETMDAY;
 
-    _monthdays[1] = (LEAP_YEAR(_time.year) ? 29 : 28);
-    if (_time.mday > _monthdays[_time.mon - 1])
-      _time.mday = _monthdays[_time.mon - 1];
-  } else if (*input == PUSHB3) {
+    _days_per_month[1] = (LEAP_YEAR(_time.year) ? 29 : 28);
+    if (_time.mday > _days_per_month[_time.mon - 1])
+      _time.mday = _days_per_month[_time.mon - 1];
+  } else if (*input == B_UP) {
     _time.year = (_time.year == 2038) ? 1970 : (_time.year + 1);
-  } else if (*input == PUSHB4) {
+  } else if (*input == B_DOWN) {
     _time.year = (_time.year == 1970) ? 2038 : (_time.year - 1);
   }
 }
@@ -599,12 +601,12 @@ void S_temp_setvdd(char arg, __data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
-    printf(ALTERNATE(VDDF "   ", VDDF "%03u"), _lm35vdd);
-  } else if (*input == PUSHB2) {
+    printf(ALTERNATE(STR_FMT_VDD "   ", STR_FMT_VDD "%03u"), _lm35vdd);
+  } else if (*input == B_SET) {
     _state = STATE_TEMP_SETOFF;
-  } else if (*input == PUSHB3) {
+  } else if (*input == B_UP) {
     _lm35vdd = (_lm35vdd > 500) ? 270 : (_lm35vdd + 10);
-  } else if (*input == PUSHB4) {
+  } else if (*input == B_DOWN) {
     _lm35vdd = (_lm35vdd < 270) ? 500 : (_lm35vdd - 10);
   }
 }
@@ -613,12 +615,12 @@ void S_temp_setoff(char arg, __data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
-    printf(ALTERNATE(OFFF "   ", OFFF "%02d"), _lm35off);
-  } else if (*input == PUSHB2) {
+    printf(ALTERNATE(STR_FMT_OFF "   ", STR_FMT_OFF "%02d"), _lm35off);
+  } else if (*input == B_SET) {
     _state = STATE_TEMP;
-  } else if (*input == PUSHB3) {
+  } else if (*input == B_UP) {
     _lm35off = (_lm35off == 10) ? -10 : (_lm35off + 1);
-  } else if (*input == PUSHB4) {
+  } else if (*input == B_DOWN) {
     _lm35off = (_lm35off == -10) ? 10 : (_lm35off - 1);
   }
 }
@@ -628,18 +630,18 @@ void S_alarm_sethour(char arg, __data char *input) /* __wparam */
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
     printf(ALTERNATE("  :", "%02hu:"), _alarm.hour);
-  } else if (*input == PUSHB1) {
+  } else if (*input == B_MODE) {
     _state = STATE_ALARM;
 
     _alarm.ena = 0;
-  } else if (*input == PUSHB2) {
+  } else if (*input == B_SET) {
     _state = STATE_ALARM_SETMIN;
 
     LEDMTX_HOME();
     printf("%02hu:", _alarm.hour);
-  } else if (*input == PUSHB3) {
+  } else if (*input == B_UP) {
     _alarm.hour = (_alarm.hour == 23) ? 0 : (_alarm.hour + 1);
-  } else if (*input == PUSHB4) {
+  } else if (*input == B_DOWN) {
     _alarm.hour = (_alarm.hour == 0) ? 23 : (_alarm.hour - 1);
   }
 }
@@ -649,17 +651,17 @@ void S_alarm_setmin(char arg, __data char *input) /* __wparam */
   if (input == (__data char *)NULL) {
     LEDMTX_GOTO(12, 0);
     printf(ALTERNATE(":  ", ":%02hu"), _alarm.min);
-  } else if (*input == PUSHB1) {
+  } else if (*input == B_MODE) {
     _state = STATE_ALARM;
 
     _alarm.ena = 0;
-  } else if (*input == PUSHB2) {
+  } else if (*input == B_SET) {
     _state = STATE_ALARM;
 
     _alarm.ena = 1;
-  } else if (*input == PUSHB3) {
+  } else if (*input == B_UP) {
     _alarm.min = (_alarm.min == 59) ? 0 : (_alarm.min + 1);
-  } else if (*input == PUSHB4) {
+  } else if (*input == B_DOWN) {
     _alarm.min = (_alarm.min == 0) ? 59 : (_alarm.min - 1);
   }
 }
@@ -690,7 +692,7 @@ void main(void) {
   ledmtx_setfont(ledmtx_font5x7);
   stdout = STREAM_USER;
 
-  sprintf(_tmpstr, INITF, *((__code unsigned char *)__IDLOC0),
+  sprintf(_tmpstr, STR_FMT_INIT, *((__code unsigned char *)__IDLOC0),
           *((__code unsigned char *)__IDLOC1),
           *((__code unsigned char *)__IDLOC2));
   SYNC_SCROLL(_scroll_desc);
@@ -706,13 +708,13 @@ void main(void) {
     if (c != -1) {
       switch (c) {
       case YEARCHG:
-        _monthdays[1] = (LEAP_YEAR(_time.year) ? 29 : 28);
+        _days_per_month[1] = (LEAP_YEAR(_time.year) ? 29 : 28);
         break;
 
-      case PUSHB1:
-      case PUSHB2:
-      case PUSHB3:
-      case PUSHB4:
+      case B_MODE:
+      case B_SET:
+      case B_UP:
+      case B_DOWN:
         if (_alarm.nack) {
           ACK_ALARM();
         } else {
