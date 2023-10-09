@@ -1,7 +1,7 @@
 /*
- * rbuf.h - ring buffer header
+ * rbuf.h - ring buffer routines
  *
- * Copyright (C) 2011  Javier L. Gomez
+ * Copyright (C) 2011-2023  Javier Lopez-Gomez
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +21,19 @@
 #ifndef __RBUF_H__
 #define __RBUF_H__
 
+/// Declare and initialize a circular buffer.  `size` must be a power of two.
+/// The first three octets describe, respectively, the mask applied to `head`
+/// and `tail`, and the head (write) and tail (read) indices Note that if `size`
+/// is a power of two, `head & mask` is equivalent to `head % size` (the same
+/// applies for tail).
 #define DECLARE_RBUF(buf, size) char buf[size + 3] = {size - 1, 0x00, 0x00};
 
+/// Insert the value `c` in the circular buffer pointed to by `buf`.
+/// Returns 0 on success, or -1 if the circular buffer is full.
 extern char rbuf_put(char c, __data char *buf) __wparam __naked;
 
+/// Pop and return an element from the circular buffer pointed to by `buf`.
+/// Returns -1 if the buffer is empty.
 extern char rbuf_get(__data char *buf) __naked;
 
 #endif // __RBUF_H__

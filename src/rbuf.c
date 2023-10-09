@@ -1,7 +1,7 @@
 /*
  * rbuf.c - ring buffer routines
  *
- * Copyright (C) 2011  Javier L. Gomez
+ * Copyright (C) 2011-2023  Javier Lopez-Gomez
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
