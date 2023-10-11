@@ -10,6 +10,8 @@ p18clock includes the following features:
 - 24h alarm
 - Automatic cycle of display mode every few seconds
 
+[demo.webm](https://github.com/jalopezg-git/p18clock/assets/36541918/f9addb17-f4da-42fe-a575-3a6c2a0e9bff)
+
 The clock is based on a finite state machine that is described in the following diagram.
 It has four push buttons: MODE, SET, UP, DOWN.  MODE triggers the transition between main states.  SET can be used to cycle across sub-states.  UP/DOWN can be used to change the value for a setting.
 ```
