@@ -1,8 +1,16 @@
 CC = sdcc
 P18FXXX = 18f2550
 
-LIBDIR = $(HOME)/.local/libledmtx/lib
-INCLUDEDIR = $(HOME)/.local/libledmtx/include
+# 32x7 display @ 50 Hz (given a Fosc of 8 MHz for the primary oscillator)
+OSC_HZ = 8000000
+VIDEO_MODE_DESC = 32 7 7 50
+
+# Set `INSTALL_PREFIX` to actual libledmtx installation directory.
+INSTALL_PREFIX = $(HOME)/.local/libledmtx/
+
+LIBDIR = $(INSTALL_PREFIX)/lib/
+INCLUDEDIR = $(INSTALL_PREFIX)/include/
+BINDIR = $(INSTALL_PREFIX)/bin/
 
 DRIVER = r393c164
 # list of libledmtx objects to link
@@ -18,10 +26,13 @@ CFLAGS = -mpic16 -p$(P18FXXX) --fomit-frame-pointer --pstack-model=small --use-n
 OBJECTS += rbuf.o lm35.o main.o
 P18CLOCK_LANG?=EN
 
-all: p18clock.hex
+all: ledmtx_modegen_modes.h p18clock.hex
 
 clean:
-	rm -f *~ ../include/*~ *.asm *.cod *.hex *.lst *.map *.o
+	rm -f *~ ../include/*~ *.asm *.cod *.hex *.lst *.map *.o ledmtx_modegen_modes.h
+
+ledmtx_modegen_modes.h:
+	$(BINDIR)/ledmtx_modegen --osc-hz $(OSC_HZ) --default=0 $(VIDEO_MODE_DESC) > $@
 
 p18clock.hex: $(OBJECTS)
 	$(CC) $(LFLAGS) -o $@ $^

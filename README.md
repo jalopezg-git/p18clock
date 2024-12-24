@@ -59,14 +59,14 @@ p18clock requires a libledmtx installation in the `$HOME/.local/libledmtx/` dire
 $ git clone --depth=1 https://github.com/jalopezg-git/libledmtx/
 $ cd libledmtx/
 $ make
-$ make LIBDIR=$HOME/.local/libledmtx/lib INCLUDEDIR=$HOME/.local/libledmtx/include BINDIR=$HOME/.local/libledmtx/bin install
+$ make INSTALL_PREFIX=$HOME/.local/libledmtx/ install
 $ cd ../
 ```
 
 Afterwards, p18clock can be built as follows:
 ```bash
 $ # Generate `p18clock.hex`; the image can be flashed into the MCU via pk2cmd
-$ make P18CLOCK_LANG=EN # or `P18CLOCK_LANG=ES` to use Spanish literals
+$ make P18CLOCK_LANG=EN # or `P18CLOCK_LANG=ES` to use Spanish translation
 ```
 
 ## Hardware

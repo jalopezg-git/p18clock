@@ -31,6 +31,8 @@
 #include <lm35.h>
 #include <rbuf.h>
 
+#include "ledmtx_modegen_modes.h"
+
 /* CONFIG1L */
 #pragma config USBDIV = 1 // USB clock source comes directly from the primary
                           // oscillator block with no postscale
@@ -309,8 +311,9 @@ void uc_init(void) {
   CCP1CON = (CCP1_R & 0x03) << 4;
   T2CON = (CCP1_T2PS & 0x03);
 
-  // 32x7 display @ 50 Hz (given a Fosc of 8 MHz for the primary oscillator)
-  ledmtx_init(LEDMTX_INIT_CLEAR | LEDMTX_INIT_TMR0, 32, 7, 0xe9, 0xae, 0x88);
+  ledmtx_init(LEDMTX_INIT_CLEAR | LEDMTX_INIT_TMR0,
+	      LEDMTX__DEFAULT_WIDTH, LEDMTX__DEFAULT_HEIGHT,
+	      LEDMTX__DEFAULT_TMR0H, LEDMTX__DEFAULT_TMR0L, LEDMTX__DEFAULT_T0CON);
 
   INTCON2bits.INTEDG0 = 0; // INT0 triggered on falling edge
   INTCONbits.INT0IE = 1;
