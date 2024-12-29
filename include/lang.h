@@ -1,7 +1,7 @@
 /*
  * lang.h - language-dependent string literals
  *
- * Copyright (C) 2011-2023  Javier Lopez-Gomez
+ * Copyright (C) 2011-2024  Javier Lopez-Gomez
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@ static __code const char *__code _str_state[] = {"TIME", "DATE", "TEMPERATURE",
                                                  "ALARM", "AUTO"};
 
 #define STR_FMT_AUTO "  AUTO<%s>"
-#define STR_FMT_INIT "p18clock firmware/%hu.%hu.%hu"
 #define STR_FMT_TEMP " %02u'C"
 #define STR_FMT_MDAY "day"
 #define STR_FMT_MONTH "m "
@@ -55,7 +54,6 @@ static __code const char *__code _str_state[] = {"HORA", "FECHA", "TEMPERATURA",
                                                  "ALARMA", "AUTO"};
 
 #define STR_FMT_AUTO "  AUTO<%s>"
-#define STR_FMT_INIT "p18clock firmware/%hu.%hu.%hu"
 #define STR_FMT_TEMP " %02u'C"
 #define STR_FMT_MDAY "dia"
 #define STR_FMT_MONTH "m "
@@ -67,5 +65,7 @@ static __code const char *__code _str_state[] = {"HORA", "FECHA", "TEMPERATURA",
 #error Unsupported language
 
 #endif
+
+#define STR_FMT_INIT "p18clock-%hu.%hu.%hu (libledmtx %s)"
 
 #endif // __LANG_H__
