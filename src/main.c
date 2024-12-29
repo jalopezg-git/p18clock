@@ -123,6 +123,9 @@ static unsigned char _days_per_month[] = {31, 28, 31, 30, 31, 30,
 #define LEAP_YEAR(year)                                                        \
   ((((year % 4) == 0) && ((year % 100) != 0)) || ((year % 400) == 0))
 
+#define YEAR_MIN 2000
+#define YEAR_MAX 2099
+
 /// Struct that holds the current date and time
 volatile struct {
   unsigned char sec;
@@ -131,7 +134,7 @@ volatile struct {
   unsigned char mday;
   unsigned char mon;
   unsigned int year;
-} _time = {0, 0, 0, 1, 1, 1970};
+} _time = {0, 0, 0, 1, 1, YEAR_MIN};
 
 /// Struct that holds information about the alarm
 static struct {
@@ -722,9 +725,9 @@ void S_date_setyear(char arg, __data char *input) /* __wparam */
     if (_time.mday > _days_per_month[_time.mon - 1])
       _time.mday = _days_per_month[_time.mon - 1];
   } else if (*input == B_UP) {
-    _time.year = (_time.year == 2038) ? 1970 : (_time.year + 1);
+    _time.year = (_time.year == YEAR_MAX) ? YEAR_MIN : (_time.year + 1);
   } else if (*input == B_DOWN) {
-    _time.year = (_time.year == 1970) ? 2038 : (_time.year - 1);
+    _time.year = (_time.year == YEAR_MIN) ? YEAR_MAX : (_time.year - 1);
   }
 }
 
