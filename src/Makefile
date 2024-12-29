@@ -3,7 +3,7 @@ P18FXXX = 18f2550
 
 # 32x7 display @ 50 Hz (given a Fosc of 8 MHz for the primary oscillator)
 OSC_HZ = 8000000
-VIDEO_MODE_DESC = 32 7 7 50
+VIDEO_MODE_DESC = 32 31 7 50
 
 # Set `INSTALL_PREFIX` to actual libledmtx installation directory.
 INSTALL_PREFIX = $(HOME)/.local/libledmtx/

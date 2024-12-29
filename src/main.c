@@ -77,7 +77,7 @@ LEDMTX_BEGIN_MODULES_INIT
 LEDMTX_MODULE_INIT(scrollstr)
 LEDMTX_END_MODULES_INIT
 
-LEDMTX_FRAMEBUFFER_RES(28)
+LEDMTX_FRAMEBUFFER_RES(124)
 
 #define CLASS_INPUT (0 << 6)
 #define CLASS_RTC (1 << 6)
@@ -88,8 +88,8 @@ LEDMTX_FRAMEBUFFER_RES(28)
 /// messages according to their semantics.
 #define MESSAGE_CLASS(m) (m & 0xc0)
 
-/// The year has changed and `_days_per_month[1]` may need updating per definition of
-/// leap year
+/// The year has changed and `_days_per_month[1]` may need updating per
+/// definition of leap year
 #define YEARCHG (CLASS_RTC | 0x00)
 /// The corresponding button has been pushed
 #define B_MODE (CLASS_INPUT | 0x08)
@@ -391,9 +391,12 @@ void uc_init(void) {
   CCP1CON = (CCP1_R & 0x03) << 4;
   T2CON = (CCP1_T2PS & 0x03);
 
-  ledmtx_init(LEDMTX_INIT_CLEAR | LEDMTX_INIT_TMR0,
-	      LEDMTX__DEFAULT_WIDTH, LEDMTX__DEFAULT_HEIGHT,
-	      LEDMTX__DEFAULT_TMR0H, LEDMTX__DEFAULT_TMR0L, LEDMTX__DEFAULT_T0CON);
+  ledmtx_init(LEDMTX_INIT_CLEAR | LEDMTX_INIT_TMR0, LEDMTX__DEFAULT_WIDTH,
+              LEDMTX__DEFAULT_HEIGHT, LEDMTX__DEFAULT_TMR0H,
+              LEDMTX__DEFAULT_TMR0L, LEDMTX__DEFAULT_T0CON);
+  // Framebuffer is 32x31; set initial viewport to 32x7.  Vertical scroll is
+  // simulated in p18clock by changing the viewport.
+  ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, 7);
 
   INTCON2bits.INTEDG0 = 0; // INT0 triggered on falling edge
   INTCONbits.INT0IE = 1;
@@ -620,36 +623,37 @@ void S_alarm(char arg, __data char *input) /* __wparam */
   }
 }
 
+// Interval (in minutes) before entering vertical scroll in AUTO mode.
+#define AUTO_INTERVAL 5
+
 void S_auto(char arg, __data char *input) /* __wparam */
 {
-  static unsigned char pstate = 0;
+  static unsigned char vscroll_sched_at_min = 0;
+  static unsigned char step = 0;
 
-  if (input == (__data char *)NULL) {
-    if ((_time.sec & 0x0f) == 0) {
-      pstate = (pstate + 1) & 0x03;
-
-      sprintf(_tmpstr, STR_FMT_AUTO, _str_state[pstate]);
-      SYNC_SCROLL(_scroll_desc);
-    }
-
-    switch (pstate) {
-    case 0:
+  // Any user input other than B_MODE may be used to manually change viewport.
+  if (input == (__data char *)NULL || *input != B_MODE) {
+    if (!input && _time.min < vscroll_sched_at_min) {
       S_time(arg, input);
-      break;
-
-    case 1:
-      S_date(arg, input);
-      break;
-
-    case 2:
-      S_temp(arg, input);
-      break;
-
-    case 3:
-      S_alarm(arg, input);
-      break;
+      return;
     }
-  } else if (*input == B_MODE) {
+
+    LEDMTX_HOME();
+    printf(STR_FMT_AUTO, _time.hour, _time.min,
+           _str_day[day_of_week(_time.mday, _time.mon, _time.year)], _time.mday,
+           _str_month[_time.mon - 1], _temperature);
+    // Simulate vertical scroll by changing display viewport.
+    const unsigned char viewport_y = (step & 0x1f);
+    if (viewport_y <= 24)
+      ledmtx_setviewport(0, viewport_y, LEDMTX__DEFAULT_WIDTH, 7);
+
+    step = (step + 1) & 0x3f;
+    if (step == 0U) {
+      ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, 7);
+      vscroll_sched_at_min = (_time.min + AUTO_INTERVAL) % 60;
+    }
+  } else {
+    ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, 7);
     _state = STATE_TIME;
 
     sprintf(_tmpstr, "  %s", _str_state[_state]);
@@ -828,8 +832,7 @@ void main(void) {
 
   sprintf(_tmpstr, STR_FMT_INIT, *((__code unsigned char *)__IDLOC0),
           *((__code unsigned char *)__IDLOC1),
-          *((__code unsigned char *)__IDLOC2),
-          LEDMTX_GITBRANCH);
+          *((__code unsigned char *)__IDLOC2), LEDMTX_GITBRANCH);
   SYNC_SCROLL(_scroll_desc);
 
   /* main loop */
@@ -841,7 +844,7 @@ void main(void) {
     }
 
     if (++rcounter == 0) {
-      rcounter = 0x51; // Should overflow in roughly 0.5s
+      rcounter = 0xa8; // Should overflow in roughly 0.25s
       _state_fn[_state](MESSAGE_CLASS(c), NULL);
     }
     c = rbuf_get(_mbuf);

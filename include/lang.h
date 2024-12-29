@@ -33,7 +33,6 @@ static __code const char *__code _str_day[] = {"Sun", "Mon", "Tue", "Wed",
 static __code const char *__code _str_state[] = {"TIME", "DATE", "TEMPERATURE",
                                                  "ALARM", "AUTO"};
 
-#define STR_FMT_AUTO "  AUTO<%s>"
 #define STR_FMT_TEMP " %02u'C"
 #define STR_FMT_MDAY "day"
 #define STR_FMT_MONTH "m "
@@ -53,7 +52,6 @@ static __code const char *__code _str_day[] = {"Dom", "Lun", "Mar", "Mie",
 static __code const char *__code _str_state[] = {"HORA", "FECHA", "TEMPERATURA",
                                                  "ALARMA", "AUTO"};
 
-#define STR_FMT_AUTO "  AUTO<%s>"
 #define STR_FMT_TEMP " %02u'C"
 #define STR_FMT_MDAY "dia"
 #define STR_FMT_MONTH "m "
@@ -67,5 +65,6 @@ static __code const char *__code _str_state[] = {"HORA", "FECHA", "TEMPERATURA",
 #endif
 
 #define STR_FMT_INIT "p18clock-%hu.%hu.%hu (libledmtx %s)"
+#define STR_FMT_AUTO "%02hu:%02hu\n %s\n%2hu%s\n" STR_FMT_TEMP
 
 #endif // __LANG_H__
