@@ -1,7 +1,7 @@
 /*
  * main.c - p18clock source file
  *
- * Copyright (C) 2011-2023  Javier Lopez-Gomez
+ * Copyright (C) 2011-2024  Javier Lopez-Gomez
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -78,8 +78,8 @@ LEDMTX_END_MODULES_INIT
 
 LEDMTX_FRAMEBUFFER_RES(28)
 
-#define CLASS_INPUT 0x00
-#define CLASS_RTC 0x40
+#define CLASS_INPUT (0 << 6)
+#define CLASS_RTC (1 << 6)
 
 /// A circular buffer is used to communicate ISR code with the main loop.  Data
 /// is typically queued from an ISR and dispatched from the main loop. The 2 MSb
@@ -98,9 +98,18 @@ LEDMTX_FRAMEBUFFER_RES(28)
 
 DECLARE_RBUF(_mbuf, 32)
 
+// # Summary of PIC peripheral usage:
+// - Timer0: used by libledmtx ISR and INT0 interrupt unmasking
+// - Timer1: used by RTC; external 32.768 kHz clock
+// - Timer2/CCP1: used by CCP1 module in PWM mode (for buzzer)
+// - Timer3: used for keystroke repetition
+//
+// # External interrupt sources:
+// - INT0: user input (keystroke)
 DEF_INTHIGH(_high_int)
 DEF_HANDLER(SIG_TMR1, _tmr1_handler)
 DEF_HANDLER(SIG_INT0, _int0_handler)
+DEF_HANDLER(SIG_TMR3, _tmr3_handler)
 END_DEF
 
 DEF_INTLOW(_low_int)
@@ -174,7 +183,7 @@ SIGHANDLERNAKED(_tmr1_handler)
   banksel	__time+3
   incf		__time+3, f		; _time.mday++
   cpfsgt	__time+3
-  bra		@tmr1_ret
+  bra		@tmr1__ret
   
   ; _time.mday overflow
   movlw		1
@@ -183,7 +192,7 @@ SIGHANDLERNAKED(_tmr1_handler)
   incf		__time+4, f		; _time.mon++
   movlw		12
   cpfsgt	__time+4
-  bra		@tmr1_ret
+  bra		@tmr1__ret
   
   ; _time.mon overflow
   movlw		1
@@ -202,7 +211,7 @@ SIGHANDLERNAKED(_tmr1_handler)
   movlw		2
   addwf		_FSR1L, f, 0
   
-@tmr1_ret:
+@tmr1__ret:
   movff		_PREINC1, _FSR0L	; pop FSR0x
   movff		_PREINC1, _FSR0H
   retfie	1
@@ -211,23 +220,18 @@ SIGHANDLERNAKED(_tmr1_handler)
 // clang-format on
 
 #define INT0_UNMASK_TIMEOUT 7
-/// An INT0 interrupt is triggered externally when PORTB value changes.  PORTB
-/// is indirectly driven by push buttons, an thus requires some debouncing
-/// logic. In particular, the INT0 handler below masks INT0 interrupts for some
-/// time after which they are enabled again (see `_tmr0_handler`).  This amount
-/// of time is given by `INT0_UNMASK_TIMEOUT`.
+/// INT0 interrupt is externally triggered on RB0/INT0 pin.  RB0:RB3 is
+/// (indirectly) driven by push buttons, and thus requires some debouncing
+/// logic. In particular, `_int0_handler` masks INT0 interrupts for some
+/// time after which they are enabled again.  This interval is given by
+/// `INT0_UNMASK_TIMEOUT`.
 static volatile unsigned char _int0_timeout;
 
+/// Queue user input (4 LSb of PORTB) in the `_mbuf` message buffer.
 // clang-format off
-SIGHANDLERNAKED(_int0_handler)
+void I_queue_keystroke(void) __naked
 {
   __asm
-  bcf		_INTCON, 1, 0		; ack interrupt
-  btfsc		_INTCON2, 6, 0		; INTEDG0 falling edge?
-  bra		@int0_rising
-  
-  movff		_FSR0H, _POSTDEC1	; push FSR0x
-  movff		_FSR0L, _POSTDEC1
   movlw		high __mbuf		; push &_mbuf
   movwf		_POSTDEC1, 0
   movlw		low __mbuf
@@ -238,16 +242,79 @@ SIGHANDLERNAKED(_int0_handler)
   call		_rbuf_put
   movlw		2
   addwf		_FSR1L, f, 0
+  return
+  __endasm;
+}
+// clang-format on
+
+/// Base delay for re-queueing last keystroke, in Timer3 ticks after prescaler.
+/// The effective delay can be adjusted by changing Timer3 prescaler. Default to
+/// initial repetition after 1s; all other repetitions happen every 0.125s.
+#define INPUT_REP_DELAY_BASE 4096
+#define INPUT_REP_PRESCALER_INITIAL 0x3
+#define INPUT_REP_PRESCALER 0x1
+
+// clang-format off
+SIGHANDLERNAKED(_int0_handler)
+{
+  __asm
+  bcf		_INTCON, 1, 0		; ack interrupt
+  btfsc		_INTCON2, 6, 0
+  bra		@int0__rising_edge
+
+  ;; Triggered due to falling edge, i.e. key press
+  movff		_FSR0H, _POSTDEC1	; push FSR0x
+  movff		_FSR0L, _POSTDEC1
+  call		_I_queue_keystroke
   movff		_PREINC1, _FSR0L	; pop FSR0x
   movff		_PREINC1, _FSR0H
-  
-@int0_rising:
+
+  movlw		((0xffff - INPUT_REP_DELAY_BASE) >> 8)
+  movwf		_TMR3H, 0
+  movlw		((0xffff - INPUT_REP_DELAY_BASE) & 0xff)
+  movwf		_TMR3L, 0
+  movlw		(0x83 | (INPUT_REP_PRESCALER_INITIAL << 3))
+  movwf		_T3CON, 0
+@int0__toggle_edge:
   bcf		_INTCON, 4, 0		; mask INT0 interrupt
   btg		_INTCON2, 6, 0		; toggle edge
-  
   movlw		INT0_UNMASK_TIMEOUT	; INT0 unmasking is done in _tmr0_handler
   banksel	__int0_timeout
   movwf		__int0_timeout
+  retfie	1
+
+  ;; Triggered due to rising edge, i.e. key release
+@int0__rising_edge:
+  bcf		_T3CON, 0, 0
+  bra		@int0__toggle_edge
+  __endasm;
+}
+// clang-format on
+
+// clang-format off
+SIGHANDLERNAKED(_tmr3_handler)
+{
+  __asm
+  bcf		_PIR2, 1, 0		; TMR3IF ack interrupt
+  btfsc		_PORTB, 0, 0		; INT0 pin driven high, i.e. key released; stop Timer3
+  bra		@tmr3__stop
+
+  movff		_FSR0H, _POSTDEC1	; push FSR0x
+  movff		_FSR0L, _POSTDEC1
+  call		_I_queue_keystroke
+  movff		_PREINC1, _FSR0L	; pop FSR0x
+  movff		_PREINC1, _FSR0H
+
+  movlw		((0xffff - INPUT_REP_DELAY_BASE) >> 8)
+  movwf		_TMR3H, 0
+  movlw		((0xffff - INPUT_REP_DELAY_BASE) & 0xff)
+  movwf		_TMR3L, 0
+  movlw		(0x83 | (INPUT_REP_PRESCALER << 3))
+  movwf		_T3CON, 0
+  retfie	1
+
+@tmr3__stop:
+  bcf		_T3CON, 0, 0
   retfie	1
   __endasm;
 }
@@ -265,15 +332,14 @@ SIGHANDLERNAKED(_tmr0_handler)
   
   __asm
   btfsc		_INTCON, 4, 0		; INT0 interrupt masked?
-  bra		@int0_unmasked
+  bra		@int0__unmasked
   
   movff		_BSR, _POSTDEC1		; push BSR
   banksel	__int0_timeout
   dcfsnz	__int0_timeout, f	; _int0_timeout--
   bsf		_INTCON, 4, 0		; _int0_timeout==0? unmask INT0 interrupt
   movff		_PREINC1, _BSR		; pop BSR
-  
-@int0_unmasked:
+@int0__unmasked:
   __endasm;
   
   LEDMTX_END_ISR
@@ -300,11 +366,16 @@ void uc_init(void) {
 
   lm35_init();
 
-  /* TMR1 RTC, see p18f2550 datasheet */
+  /* Timer1, see p18f2550 datasheet.  RTC */
   TMR1H = 0x80;
   TMR1L = 0x00;
   T1CON = 0x0f;
   PIE1bits.TMR1IE = 1;
+  IPR1bits.TMR1IP = 1;
+
+  /* Timer3 */
+  PIE2bits.TMR3IE = 1;
+  IPR2bits.TMR3IP = 1;
 
   PR2 = CCP1_PR2;
   CCPR1L = (CCP1_R >> 2);
