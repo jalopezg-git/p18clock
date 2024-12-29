@@ -24,6 +24,11 @@
 #include <ledmtx_core.h>
 #include <ledmtx_font5x7.h>
 #include <ledmtx_stdio.h>
+#if LEDMTX_HAVE_VIEWPORT != 1
+#error p18clock requires a libledmtx build that has ENABLE_VIEWPORT=1
+
+#endif
+
 #include <signal.h>
 #include <stdio.h>
 // clang-format on
