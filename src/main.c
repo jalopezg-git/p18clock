@@ -20,6 +20,7 @@
 
 // clang-format off
 #include <ledmtx_scrollstr.h>
+#include <ledmtx_config.h>
 #include <ledmtx_core.h>
 #include <ledmtx_font5x7.h>
 #include <ledmtx_stdio.h>
@@ -456,7 +457,7 @@ char day_of_week(unsigned char mday, unsigned char mon, unsigned int year) {
 static unsigned char _state = STATE_TIME;
 
 /// A single descriptor (and NUL-terminated string) is used for scrolling text.
-static char _tmpstr[32];
+static char _tmpstr[64];
 static struct ledmtx_scrollstr_desc _scroll_desc = {
     1, 1,    ledmtx_scrollstr_step, 32,  0, 0, (__data char *)_tmpstr, 0,
     1, 0x80, ledmtx_scrollstr_stop, 0x00};
@@ -827,7 +828,8 @@ void main(void) {
 
   sprintf(_tmpstr, STR_FMT_INIT, *((__code unsigned char *)__IDLOC0),
           *((__code unsigned char *)__IDLOC1),
-          *((__code unsigned char *)__IDLOC2));
+          *((__code unsigned char *)__IDLOC2),
+          LEDMTX_GITBRANCH);
   SYNC_SCROLL(_scroll_desc);
 
   /* main loop */
