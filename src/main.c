@@ -349,6 +349,11 @@ SIGHANDLERNAKED(_tmr0_handler)
 }
 // clang-format on
 
+/// Interval (in seconds) that separates two LM35 samples.
+#define TEMPERATURE_INTERVAL 4
+/// Last LM35 measurement, in Celsius degrees.
+static int _temperature = 0;
+
 /* PWM 2.44khz@50 (Fosc=8mhz) */
 #define CCP1_PR2 0xcb
 #define CCP1_R 0x066
@@ -391,6 +396,8 @@ void uc_init(void) {
 
   INTCON2bits.INTEDG0 = 0; // INT0 triggered on falling edge
   INTCONbits.INT0IE = 1;
+
+  _temperature = lm35_get();
 }
 
 /// Return the day of the week for the given date, i.e. 0 - Sunday, 1 - Monday,
@@ -581,7 +588,7 @@ void S_temp(char arg, __data char *input) /* __wparam */
   (void)arg;
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
-    printf(STR_FMT_TEMP, lm35_get());
+    printf(STR_FMT_TEMP, _temperature);
   } else if (*input == B_MODE) {
     _state = STATE_ALARM;
 
@@ -811,6 +818,7 @@ static state_func_t __code _state_fn[] = {
 void main(void) {
   static char c;
   static unsigned char rcounter = 0xff;
+  static unsigned char temp_measurement_sched_sec = 0;
 
   /* initialisation */
   uc_init();
@@ -824,11 +832,16 @@ void main(void) {
 
   /* main loop */
   while (1) {
+    if (_time.sec >= temp_measurement_sched_sec) {
+      _temperature = lm35_get();
+      temp_measurement_sched_sec =
+          (temp_measurement_sched_sec + TEMPERATURE_INTERVAL) % 60;
+    }
+
     if (++rcounter == 0) {
       rcounter = 0x51; // Should overflow in roughly 0.5s
       _state_fn[_state](MESSAGE_CLASS(c), NULL);
     }
-
     c = rbuf_get(_mbuf);
     if (c != -1) {
       switch (c) {

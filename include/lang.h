@@ -35,7 +35,7 @@ static __code const char *__code _str_state[] = {"TIME", "DATE", "TEMPERATURE",
 
 #define STR_FMT_AUTO "  AUTO<%s>"
 #define STR_FMT_INIT "p18clock firmware/%hu.%hu.%hu"
-#define STR_FMT_TEMP " %02u C"
+#define STR_FMT_TEMP " %02u'C"
 #define STR_FMT_MDAY "day"
 #define STR_FMT_MONTH "m "
 #define STR_FMT_YEAR "y"
@@ -56,7 +56,7 @@ static __code const char *__code _str_state[] = {"HORA", "FECHA", "TEMPERATURA",
 
 #define STR_FMT_AUTO "  AUTO<%s>"
 #define STR_FMT_INIT "p18clock firmware/%hu.%hu.%hu"
-#define STR_FMT_TEMP " %02u C"
+#define STR_FMT_TEMP " %02u'C"
 #define STR_FMT_MDAY "dia"
 #define STR_FMT_MONTH "m "
 #define STR_FMT_YEAR "a"
