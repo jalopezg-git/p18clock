@@ -78,6 +78,26 @@ __CONFIG(__IDLOC0, 0);
 __CONFIG(__IDLOC1, 2);
 __CONFIG(__IDLOC2, 2);
 
+#define UNDEF ((unsigned char)-1)
+
+/// Base delay for re-queueing last keystroke, in Timer3 ticks after prescaler.
+/// The effective delay can be adjusted by changing Timer3 prescaler. Default to
+/// initial repetition after 1s; all other repetitions happen every 0.125s.
+#define INPUT_REP_DELAY_BASE 4096
+#define INPUT_REP_PRESCALER_INITIAL 0x3
+#define INPUT_REP_PRESCALER 0x1
+
+/// Interval (in seconds) that separates two LM35 samples.
+#define TEMPERATURE_INTERVAL 4
+
+// Interval (in minutes) before entering vertical scroll in AUTO mode.
+#define AUTO_INTERVAL 5
+
+/* PWM 2.44khz@50 (Fosc=8mhz) */
+#define CCP1_PR2 0xcb
+#define CCP1_R 0x066
+#define CCP1_T2PS 0x01
+
 LEDMTX_BEGIN_MODULES_INIT
 LEDMTX_MODULE_INIT(scrollstr)
 LEDMTX_END_MODULES_INIT
@@ -150,6 +170,9 @@ static struct {
   unsigned char hour;
   unsigned char min;
 } _alarm = {0, 0, 0, 0};
+
+/// Last LM35 measurement, in Celsius degrees.
+static int _temperature = 0;
 
 // clang-format off
 SIGHANDLERNAKED(_tmr1_handler)
@@ -256,13 +279,6 @@ void I_queue_keystroke(void) __naked
 }
 // clang-format on
 
-/// Base delay for re-queueing last keystroke, in Timer3 ticks after prescaler.
-/// The effective delay can be adjusted by changing Timer3 prescaler. Default to
-/// initial repetition after 1s; all other repetitions happen every 0.125s.
-#define INPUT_REP_DELAY_BASE 4096
-#define INPUT_REP_PRESCALER_INITIAL 0x3
-#define INPUT_REP_PRESCALER 0x1
-
 // clang-format off
 SIGHANDLERNAKED(_int0_handler)
 {
@@ -354,16 +370,6 @@ SIGHANDLERNAKED(_tmr0_handler)
   LEDMTX_END_ISR
 }
 // clang-format on
-
-/// Interval (in seconds) that separates two LM35 samples.
-#define TEMPERATURE_INTERVAL 4
-/// Last LM35 measurement, in Celsius degrees.
-static int _temperature = 0;
-
-/* PWM 2.44khz@50 (Fosc=8mhz) */
-#define CCP1_PR2 0xcb
-#define CCP1_R 0x066
-#define CCP1_T2PS 0x01
 
 /// Carry out initialization tasks, e.g. set the `TRISx` registers and configure
 /// peripherals
@@ -628,17 +634,16 @@ void S_alarm(char arg, __data char *input) /* __wparam */
   }
 }
 
-// Interval (in minutes) before entering vertical scroll in AUTO mode.
-#define AUTO_INTERVAL 5
-
 void S_auto(char arg, __data char *input) /* __wparam */
 {
-  static unsigned char vscroll_sched_at_min = 0;
-  static unsigned char step = 0;
+  static unsigned char vscroll_sched_at_min = UNDEF;
+  static unsigned char step = 0U;
 
   // Any user input other than B_MODE may be used to manually change viewport.
   if (input == (__data char *)NULL || *input != B_MODE) {
-    if (!input && _time.min < vscroll_sched_at_min) {
+    if (vscroll_sched_at_min == UNDEF)
+      vscroll_sched_at_min = _time.min;
+    if (step == 0U && (!input && _time.min != vscroll_sched_at_min)) {
       S_time(arg, input);
       return;
     }
@@ -659,8 +664,9 @@ void S_auto(char arg, __data char *input) /* __wparam */
     }
   } else {
     ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, 7);
-    _state = STATE_TIME;
+    vscroll_sched_at_min = UNDEF;
 
+    _state = STATE_TIME;
     sprintf(_tmpstr, "  %s", _str_state[_state]);
     SYNC_SCROLL(_scroll_desc);
   }
@@ -828,7 +834,7 @@ static state_func_t __code _state_fn[] = {
 void main(void) {
   static char c;
   static unsigned char rcounter = 0xff;
-  static unsigned char temp_measurement_sched_sec = 0;
+  static unsigned char temp_measurement_sched_sec = UNDEF;
 
   /* initialisation */
   uc_init();
@@ -840,12 +846,12 @@ void main(void) {
           *((__code unsigned char *)__IDLOC2), LEDMTX_GITBRANCH);
   SYNC_SCROLL(_scroll_desc);
 
+  temp_measurement_sched_sec = (_time.sec + TEMPERATURE_INTERVAL) % 60;
   /* main loop */
   while (1) {
-    if (_time.sec >= temp_measurement_sched_sec) {
+    if (_time.sec == temp_measurement_sched_sec) {
       _temperature = lm35_get();
-      temp_measurement_sched_sec =
-          (temp_measurement_sched_sec + TEMPERATURE_INTERVAL) % 60;
+      temp_measurement_sched_sec = (_time.sec + TEMPERATURE_INTERVAL) % 60;
     }
 
     if (++rcounter == 0) {
