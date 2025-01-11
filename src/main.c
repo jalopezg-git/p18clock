@@ -76,7 +76,7 @@
 /* The IDLOC0, IDLOC1, and IDLOC2 bytes store the firmware version */
 __CONFIG(__IDLOC0, 1);
 __CONFIG(__IDLOC1, 0);
-__CONFIG(__IDLOC2, 0);
+__CONFIG(__IDLOC2, 1);
 
 #define UNDEF ((unsigned char)-1)
 
@@ -88,7 +88,7 @@ __CONFIG(__IDLOC2, 0);
 #define INPUT_REP_PRESCALER 0x1
 
 /// Interval (in seconds) that separates two LM35 samples.
-#define TEMPERATURE_INTERVAL 4
+#define TEMPERATURE_INTERVAL 20
 
 // Interval (in minutes) before entering vertical scroll in AUTO mode.
 #define AUTO_INTERVAL 5
