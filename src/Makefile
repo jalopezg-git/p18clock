@@ -32,6 +32,7 @@ ifdef LARGE_DISPLAY
 # 40x8 display @ 50 Hz; framebuffer can hold up to four lines of text though
 VIDEO_MODE_DESC = 40 35 8 100
 CFLAGS += -D__P18CLOCK_LARGE_DISPLAY
+O += font6x8
 else
 # 32x7 display @ 50 Hz; framebuffer can hold up to four lines of text though
 VIDEO_MODE_DESC = 32 31 7 100
