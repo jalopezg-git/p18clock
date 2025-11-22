@@ -1,9 +1,10 @@
 CC = sdcc
+ifdef P18F2550
 P18FXXX = 18f2550
-
-# 32x7 display @ 50 Hz (given a Fosc of 8 MHz for the primary oscillator)
+else
+P18FXXX = 18f2510
+endif
 OSC_HZ = 8000000
-VIDEO_MODE_DESC = 32 31 7 50
 
 # Set `INSTALL_PREFIX` to actual libledmtx installation directory.
 INSTALL_PREFIX = $(HOME)/.local/libledmtx/
@@ -25,6 +26,21 @@ CFLAGS = -mpic16 -p$(P18FXXX) --fomit-frame-pointer --pstack-model=small --use-n
 
 OBJECTS += rbuf.o lm35.o main.o
 P18CLOCK_LANG?=EN
+
+# `LARGE_DISPLAY`: define to assume builtin display of 40x8.
+ifdef LARGE_DISPLAY
+# 40x8 display @ 50 Hz; framebuffer can hold up to four lines of text though
+VIDEO_MODE_DESC = 40 35 8 50
+CFLAGS += -D__P18CLOCK_LARGE_DISPLAY
+else
+# 32x7 display @ 50 Hz; framebuffer can hold up to four lines of text though
+VIDEO_MODE_DESC = 32 31 7 50
+endif
+
+# `REVERSE_PUSHB_ORDER`: define if the PCB has push buttons laid out in reverse order.
+ifdef REVERSE_PUSHB_ORDER
+CFLAGS += -D__P18CLOCK_REVERSE_PUSHB_ORDER
+endif
 
 all: ledmtx_modegen_modes.h p18clock.hex
 
