@@ -503,10 +503,10 @@ static unsigned char _state = STATE_TIME;
 
 /// A single descriptor (and NUL-terminated string) is used for scrolling text.
 static char _tmpstr[64];
-static struct ledmtx_scrollstr_desc _scroll_desc = {1,
-                                                    1,
+static struct ledmtx_scrollstr_desc _scroll_desc = {2,
+                                                    2,
                                                     ledmtx_scrollstr_step,
-                                                    7,
+                                                    LEDMTX_VIEWPORT_HEIGHT,
                                                     LEDMTX__DEFAULT_WIDTH,
                                                     0,
                                                     0,
@@ -897,7 +897,7 @@ void main(void) {
     }
 
     if (++rcounter == 0) {
-      rcounter = 0xa8; // Should overflow in roughly 0.25s
+      rcounter = 0x51; // Should overflow in roughly 0.25s
       _state_fn[_state](MESSAGE_CLASS(c), NULL);
     }
     c = rbuf_get(_mbuf);

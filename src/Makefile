@@ -30,11 +30,11 @@ P18CLOCK_LANG?=EN
 # `LARGE_DISPLAY`: define to assume builtin display of 40x8.
 ifdef LARGE_DISPLAY
 # 40x8 display @ 50 Hz; framebuffer can hold up to four lines of text though
-VIDEO_MODE_DESC = 40 35 8 50
+VIDEO_MODE_DESC = 40 35 8 100
 CFLAGS += -D__P18CLOCK_LARGE_DISPLAY
 else
 # 32x7 display @ 50 Hz; framebuffer can hold up to four lines of text though
-VIDEO_MODE_DESC = 32 31 7 50
+VIDEO_MODE_DESC = 32 31 7 100
 endif
 
 # `REVERSE_PUSHB_ORDER`: define if the PCB has push buttons laid out in reverse order.
