@@ -41,25 +41,39 @@
 #include "ledmtx_modegen_modes.h"
 
 /* CONFIG1L */
+#if defined(__SDCC_PIC18F2550)
 #pragma config USBDIV = 1 // USB clock source comes directly from the primary
                           // oscillator block with no postscale
 #pragma config CPUDIV =                                                        \
     OSC1_PLL2             // [Primary Oscillator Src: /1][96 MHz PLL Src: /2]
 #pragma config PLLDIV = 2 // Divide by 2 (8 MHz oscillator input)
+#endif                    /* __SDCC_PIC18F2550 */
 
 /* CONFIG1H */
+#if defined(__SDCC_PIC18F2550)
 #pragma config FOSC = HS // HS oscillator (HS)
+#else
+#pragma config OSC = HS // HS oscillator (HS)
+#endif                  /* __SDCC_PIC18F2550 */
 
 /* CONFIG2L */
-#pragma config BOR = SOFT // Brown-out Reset enabled and controlled by software
-                          // (SBOREN is enabled)
-#pragma config BORV = 2   // Setting 1 2.79V
+#if defined(__SDCC_PIC18F2550)
+#pragma config BOR = OFF // Brown-out Reset disabled in hardware and software
+#else
+#pragma config BOREN = OFF // Brown-out Reset disabled in hardware and software
+#endif                     /* __SDCC_PIC18F2550 */
+#pragma config BORV = 2    // Setting 1 2.79V
 
 /* CONFIG2H */
 #pragma config WDT = OFF // WDT disabled
 
 /* CONFIG3H */
+#if defined(__SDCC_PIC18F2550)
 #pragma config CCP2MX = ON // CCP2 input/output is multiplexed with RC1
+#else
+#pragma config CCP2MX = PORTC // CCP2 input/output is multiplexed with RC1
+#endif                        /* __SDCC_PIC18F2550 */
+
 #pragma config PBADEN =                                                        \
     OFF // PORTB<4:0> pins are configured as digital I/O on Reset
 #pragma config LPT1OSC = OFF // Timer1 configured for higher power operation
@@ -105,6 +119,12 @@ LEDMTX_END_MODULES_INIT
 
 LEDMTX_DECLARE_FRAMEBUFFER(LEDMTX__DEFAULT_WIDTH, LEDMTX__DEFAULT_HEIGHT)
 
+#if defined(__P18CLOCK_LARGE_DISPLAY)
+#define LEDMTX_VIEWPORT_HEIGHT 8
+#else
+#define LEDMTX_VIEWPORT_HEIGHT 7
+#endif /* __P18CLOCK_LARGE_DISPLAY */
+
 #define CLASS_INPUT (0 << 6)
 #define CLASS_RTC (1 << 6)
 
@@ -117,11 +137,21 @@ LEDMTX_DECLARE_FRAMEBUFFER(LEDMTX__DEFAULT_WIDTH, LEDMTX__DEFAULT_HEIGHT)
 /// The year has changed and `_days_per_month[1]` may need updating per
 /// definition of leap year
 #define YEARCHG (CLASS_RTC | 0x00)
+
 /// The corresponding button has been pushed
+#if !defined(__P18CLOCK_REVERSE_PUSHB_ORDER)
 #define B_MODE (CLASS_INPUT | 0x08)
 #define B_SET (CLASS_INPUT | 0x0a)
 #define B_UP (CLASS_INPUT | 0x0c)
 #define B_DOWN (CLASS_INPUT | 0x0e)
+
+#else
+#define B_MODE (CLASS_INPUT | 0x0e)
+#define B_SET (CLASS_INPUT | 0x0c)
+#define B_UP (CLASS_INPUT | 0x0a)
+#define B_DOWN (CLASS_INPUT | 0x08)
+
+#endif /* __P18CLOCK_REVERSE_PUSHB_ORDER */
 
 DECLARE_RBUF(_mbuf, 32)
 
@@ -406,9 +436,9 @@ void uc_init(void) {
   ledmtx_init(LEDMTX_INIT_CLEAR | LEDMTX_INIT_TMR0, LEDMTX__DEFAULT_WIDTH,
               LEDMTX__DEFAULT_HEIGHT, LEDMTX__DEFAULT_TMR0H,
               LEDMTX__DEFAULT_TMR0L, LEDMTX__DEFAULT_T0CON);
-  // Framebuffer is 32x31; set initial viewport to 32x7.  Vertical scroll is
-  // simulated in p18clock by changing the viewport.
-  ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, 7);
+  // Framebuffer is either 32x31 or 40x35; set initial viewport height. Vertical
+  // scroll is simulated in p18clock by changing the viewport.
+  ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, LEDMTX_VIEWPORT_HEIGHT);
 
   INTCON2bits.INTEDG0 = 0; // INT0 triggered on falling edge
   INTCONbits.INT0IE = 1;
@@ -666,15 +696,16 @@ void S_auto(char arg, __data char *input) /* __wparam */
     // Simulate vertical scroll by changing display viewport.
     const unsigned char viewport_y = (step & 0x1f);
     if (viewport_y <= 24)
-      ledmtx_setviewport(0, viewport_y, LEDMTX__DEFAULT_WIDTH, 7);
+      ledmtx_setviewport(0, viewport_y, LEDMTX__DEFAULT_WIDTH,
+                         LEDMTX_VIEWPORT_HEIGHT);
 
     step = (step + 1) & 0x3f;
     if (step == 0U) {
-      ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, 7);
+      ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, LEDMTX_VIEWPORT_HEIGHT);
       vscroll_sched_at_min = (_time.min + AUTO_INTERVAL) % 60;
     }
   } else {
-    ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, 7);
+    ledmtx_setviewport(0, 0, LEDMTX__DEFAULT_WIDTH, LEDMTX_VIEWPORT_HEIGHT);
     vscroll_sched_at_min = UNDEF;
 
     _state = STATE_TIME;
