@@ -1,7 +1,7 @@
 /*
  * main.c - p18clock source file
  *
- * Copyright (C) 2011-2024  Javier Lopez-Gomez
+ * Copyright (C) 2011-2025  Javier Lopez-Gomez
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +20,10 @@
 
 // clang-format off
 #include <ledmtx_scrollstr.h>
+
 #include <ledmtx_config.h>
 #include <ledmtx_core.h>
-#include <ledmtx_font5x7.h>
+#include <ledmtx_fontstd.h>
 #include <ledmtx_stdio.h>
 #if LEDMTX_HAVE_VIEWPORT != 1
 #error p18clock requires a libledmtx build that has ENABLE_VIEWPORT=1
@@ -102,7 +103,7 @@ LEDMTX_BEGIN_MODULES_INIT
 LEDMTX_MODULE_INIT(scrollstr)
 LEDMTX_END_MODULES_INIT
 
-LEDMTX_FRAMEBUFFER_RES(124)
+LEDMTX_DECLARE_FRAMEBUFFER(LEDMTX__DEFAULT_WIDTH, LEDMTX__DEFAULT_HEIGHT)
 
 #define CLASS_INPUT (0 << 6)
 #define CLASS_RTC (1 << 6)
@@ -472,9 +473,19 @@ static unsigned char _state = STATE_TIME;
 
 /// A single descriptor (and NUL-terminated string) is used for scrolling text.
 static char _tmpstr[64];
-static struct ledmtx_scrollstr_desc _scroll_desc = {
-    1, 1,    ledmtx_scrollstr_step, 32,  0, 0, (__data char *)_tmpstr, 0,
-    1, 0x80, ledmtx_scrollstr_stop, 0x00};
+static struct ledmtx_scrollstr_desc _scroll_desc = {1,
+                                                    1,
+                                                    ledmtx_scrollstr_step,
+                                                    7,
+                                                    LEDMTX__DEFAULT_WIDTH,
+                                                    0,
+                                                    0,
+                                                    (__data char *)_tmpstr,
+                                                    0,
+                                                    1,
+                                                    0x80,
+                                                    ledmtx_scrollstr_stop,
+                                                    0x00};
 
 /// Schedule a text for asynchronous scroll (see Timer0 handler), and wait for
 /// its finalization
