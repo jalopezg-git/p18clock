@@ -69,6 +69,10 @@ $ # Generate `p18clock.hex`; the image can be flashed into the MCU via pk2cmd
 $ make P18CLOCK_LANG=EN # or `P18CLOCK_LANG=ES` to use Spanish translation
 ```
 
+Additional arguments can be passed to `make` in order to enable/disable specific features; specifically,
+- `LARGE_DISPLAY=1`: build for latest p18clock hardware (builtin 40x8 display).
+- `REVERSE_PUSHB_ORDER=1`: define if the PCB has push buttons laid out in reverse order.
+
 ## Hardware
 ![p18clock hardware](doc/hardware.jpg)
 

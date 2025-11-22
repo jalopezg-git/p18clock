@@ -121,8 +121,14 @@ LEDMTX_DECLARE_FRAMEBUFFER(LEDMTX__DEFAULT_WIDTH, LEDMTX__DEFAULT_HEIGHT)
 
 #if defined(__P18CLOCK_LARGE_DISPLAY)
 #define LEDMTX_VIEWPORT_HEIGHT 8
+#define P18CLOCK_FONT_SMALL ledmtx_font5x7
+#define P18CLOCK_FONT_LARGE ledmtx_font6x8
+
 #else
 #define LEDMTX_VIEWPORT_HEIGHT 7
+#define P18CLOCK_FONT_SMALL ledmtx_font5x7
+#define P18CLOCK_FONT_LARGE ledmtx_font5x7
+
 #endif /* __P18CLOCK_LARGE_DISPLAY */
 
 #define CLASS_INPUT (0 << 6)
@@ -518,13 +524,16 @@ static struct ledmtx_scrollstr_desc _scroll_desc = {2,
                                                     0x00};
 
 /// Schedule a text for asynchronous scroll (see Timer0 handler), and wait for
-/// its finalization
+/// its finalization.
+/// Temporarily use a smaller font s.t. more characters fit the display.
 #define SYNC_SCROLL(d)                                                         \
   do {                                                                         \
+    ledmtx_setfont(P18CLOCK_FONT_SMALL);                                       \
     ledmtx_scrollstr_start(&d);                                                \
     while (d.str[d.i] != 0 || d.charoff != 0)                                  \
       IDLE();                                                                  \
     ledmtx_scrollstr_reset(&d);                                                \
+    ledmtx_setfont(P18CLOCK_FONT_LARGE);                                       \
   } while (0)
 
 #define ENABLE_BUZZER()                                                        \
@@ -695,7 +704,11 @@ void S_auto(char arg, __data char *input) /* __wparam */
            _str_month[_time.mon - 1], _temperature);
     // Simulate vertical scroll by changing display viewport.
     const unsigned char viewport_y = (step & 0x1f);
+#if defined(__P18CLOCK_LARGE_DISPLAY)
+    if (viewport_y <= 27)
+#else
     if (viewport_y <= 24)
+#endif /* __P18CLOCK_LARGE_DISPLAY */
       ledmtx_setviewport(0, viewport_y, LEDMTX__DEFAULT_WIDTH,
                          LEDMTX_VIEWPORT_HEIGHT);
 
@@ -734,7 +747,7 @@ void S_time_sethour(char arg, __data char *input) /* __wparam */
 void S_time_setmin(char arg, __data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
-    LEDMTX_GOTO(12, 0);
+    LEDMTX_GOTO((ledmtx_font_sz_w + 1) * 2, 0);
     printf(ALTERNATE(":  ", ":%02hu"), _time.min);
   } else if (*input == B_SET) {
     _state = STATE_TIME;
@@ -848,7 +861,7 @@ void S_alarm_sethour(char arg, __data char *input) /* __wparam */
 void S_alarm_setmin(char arg, __data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
-    LEDMTX_GOTO(12, 0);
+    LEDMTX_GOTO((ledmtx_font_sz_w + 1) * 2, 0);
     printf(ALTERNATE(":  ", ":%02hu"), _alarm.min);
   } else if (*input == B_MODE) {
     _state = STATE_ALARM;
@@ -880,7 +893,7 @@ void main(void) {
 
   /* initialisation */
   uc_init();
-  ledmtx_setfont(ledmtx_font5x7);
+  ledmtx_setfont(P18CLOCK_FONT_LARGE);
   stdout = STREAM_USER;
 
   sprintf(_tmpstr, STR_FMT_INIT, *((__code unsigned char *)__IDLOC0),
