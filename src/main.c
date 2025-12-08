@@ -30,6 +30,7 @@
 
 #endif
 
+#include <delay.h>
 #include <signal.h>
 #include <stdio.h>
 // clang-format on
@@ -548,6 +549,13 @@ static struct ledmtx_scrollstr_desc _scroll_desc = {2,
     T2CONbits.TMR2ON = 0;                                                      \
   } while (0)
 
+#define BEEP()                                                                 \
+  do {                                                                         \
+    ENABLE_BUZZER();                                                           \
+    delay10ktcy(1);                                                            \
+    DISABLE_BUZZER();                                                          \
+  } while (0)
+
 void alarm(void) {
   static unsigned char pstate = 0;
 
@@ -895,6 +903,7 @@ void main(void) {
   uc_init();
   ledmtx_setfont(P18CLOCK_FONT_LARGE);
   stdout = STREAM_USER;
+  BEEP();
 
   sprintf(_tmpstr, STR_FMT_INIT, *((__code unsigned char *)__IDLOC0),
           *((__code unsigned char *)__IDLOC1),
