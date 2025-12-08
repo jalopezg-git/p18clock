@@ -202,11 +202,11 @@ volatile struct {
 
 /// Struct that holds information about the alarm
 static struct {
+  unsigned char hour;
+  unsigned char min;
   unsigned ena : 1;
   unsigned nack : 1;
   unsigned : 6;
-  unsigned char hour;
-  unsigned char min;
 } _alarm = {0, 0, 0, 0};
 
 /// Last LM35 measurement, in Celsius degrees.
@@ -571,7 +571,7 @@ void alarm(void) {
 }
 
 /* `idle_alarm()` counter overflows in ~0.125s */
-#define IDLE_ALARM__COUNTER_PRELOAD 0xd4
+#define IDLE_ALARM__COUNTER_PRELOAD 0xa9
 void idle_alarm(void) {
   static unsigned char counter = IDLE_ALARM__COUNTER_PRELOAD;
 
