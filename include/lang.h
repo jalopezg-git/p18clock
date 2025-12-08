@@ -39,6 +39,7 @@ static __code const char *__code _str_state[] = {"TIME", "DATE", "TEMPERATURE",
 #define STR_FMT_YEAR "y"
 #define STR_FMT_VDD "V "
 #define STR_FMT_OFF "of"
+#define STR_FMT_YEARCHG "Happy %u!"
 
 /* Spanish (ES) */
 #elif defined(LANG_ES)
@@ -58,6 +59,7 @@ static __code const char *__code _str_state[] = {"HORA", "FECHA", "TEMPERATURA",
 #define STR_FMT_YEAR "a"
 #define STR_FMT_VDD "V "
 #define STR_FMT_OFF "of"
+#define STR_FMT_YEARCHG "Feliz %u!"
 
 #else
 #error Unsupported language

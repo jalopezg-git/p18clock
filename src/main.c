@@ -918,6 +918,10 @@ void main(void) {
       switch (c) {
       case YEARCHG:
         _days_per_month[1] = (LEAP_YEAR(_time.year) ? 29 : 28);
+#ifdef STR_FMT_YEARCHG
+        sprintf(_tmpstr, STR_FMT_YEARCHG, _time.year);
+        SYNC_SCROLL(_scroll_desc);
+#endif
         break;
 
       case B_MODE:
