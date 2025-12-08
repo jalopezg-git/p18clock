@@ -614,6 +614,10 @@ void S_time(char arg, __data char *input) /* __wparam */
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
     printf(ALTERNATE("%02hu %02hu", "%02hu:%02hu"), _time.hour, _time.min);
+#if defined(__P18CLOCK_LARGE_DISPLAY)
+    ledmtx_putchar(LEDMTX_PUTCHAR_CPY, /*mask=*/0xfc, /*x=*/34, /*y=*/0,
+                   _alarm.ena ? 0x17 : 0x20);
+#endif
   } else if (*input == B_MODE) {
     _state = STATE_DATE;
 
