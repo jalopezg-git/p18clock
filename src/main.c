@@ -90,9 +90,9 @@
                            // configured as general purpose I/O
 
 /* The IDLOC0, IDLOC1, and IDLOC2 bytes store the firmware version */
-__CONFIG(__IDLOC0, 1);
+__CONFIG(__IDLOC0, 2);
 __CONFIG(__IDLOC1, 0);
-__CONFIG(__IDLOC2, 1);
+__CONFIG(__IDLOC2, 2);
 
 #define UNDEF ((unsigned char)-1)
 
