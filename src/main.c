@@ -903,7 +903,7 @@ static state_func_t __code _state_fn[] = {
     S_alarm_sethour, S_alarm_setmin};
 
 void main(void) {
-  static char c;
+  static signed char c;
   static unsigned char rcounter = 0xff;
   static unsigned char temp_measurement_sched_sec = UNDEF;
 
