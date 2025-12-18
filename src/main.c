@@ -603,6 +603,24 @@ void idle_alarm(void) {
 #define ALTERNATE(arg1, arg2)                                                  \
   ((TMR1H & 0x40) && (arg != CLASS_INPUT) ? arg1 : arg2)
 
+/// `S_time()` helper to draw alarm-enabled indicator near the right edge if
+/// needed.
+#if defined(__P18CLOCK_LARGE_DISPLAY)
+void __S_time_draw_alarm_indicator(char arg, __data char *input) /* __wparam */
+{
+  static unsigned char alarm_was_enabled = UNDEF;
+  if (input != NULL && *input == B_MODE) {
+    alarm_was_enabled = UNDEF; // reset before transition to another main state
+    return;
+  }
+  if (_alarm.ena != alarm_was_enabled) {
+    ledmtx_putchar(LEDMTX_PUTCHAR_CPY, /*mask=*/0xfc, /*x=*/34, /*y=*/0,
+                   _alarm.ena ? 0x17 : 0x20);
+    alarm_was_enabled = _alarm.ena;
+  }
+}
+#endif
+
 /// ==== Functions that implement behavior for each FSM state ====
 /// The `input` parameter carries user input that may trigger a state change.
 /// These functions are also called periodically with input == NULL; in this
@@ -612,22 +630,12 @@ void idle_alarm(void) {
 void S_time(char arg, __data char *input) /* __wparam */
 {
 #if defined(__P18CLOCK_LARGE_DISPLAY)
-  static unsigned char alarm_was_enabled = UNDEF;
+  __S_time_draw_alarm_indicator(arg, input);
 #endif
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
     printf(ALTERNATE("%02hu %02hu", "%02hu:%02hu"), _time.hour, _time.min);
-#if defined(__P18CLOCK_LARGE_DISPLAY)
-    if (_alarm.ena != alarm_was_enabled) {
-      ledmtx_putchar(LEDMTX_PUTCHAR_CPY, /*mask=*/0xfc, /*x=*/34, /*y=*/0,
-                     _alarm.ena ? 0x17 : 0x20);
-      alarm_was_enabled = _alarm.ena;
-    }
-#endif
   } else if (*input == B_MODE) {
-#if defined(__P18CLOCK_LARGE_DISPLAY)
-    alarm_was_enabled = UNDEF;
-#endif
     _state = STATE_DATE;
 
     sprintf(_tmpstr, "  %s", _str_state[_state]);
@@ -710,6 +718,9 @@ void S_auto(char arg, __data char *input) /* __wparam */
   static unsigned char vscroll_sched_at_min = UNDEF;
   static unsigned char step = 0U;
 
+#if defined(__P18CLOCK_LARGE_DISPLAY)
+  __S_time_draw_alarm_indicator(arg, input);
+#endif
   // Any user input other than B_MODE may be used to manually change viewport.
   if (input == (__data char *)NULL || *input != B_MODE) {
     if (vscroll_sched_at_min == UNDEF)
