@@ -506,7 +506,7 @@ char day_of_week(unsigned char mday, unsigned char mon, unsigned int year) {
 #define STATE_ALARM_SETMIN 0x0d
 
 /// The current state of the FSM
-static unsigned char _state = STATE_TIME;
+static unsigned char _state = STATE_TIME_SETHOUR;
 
 /// A single descriptor (and NUL-terminated string) is used for scrolling text.
 static char _tmpstr[64];
@@ -764,6 +764,7 @@ void S_time_sethour(char arg, __data char *input) /* __wparam */
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
     printf(ALTERNATE("  :", "%02hu:"), _time.hour);
+    printf("%02hu", _time.min);
   } else if (*input == B_SET) {
     _state = STATE_TIME_SETMIN;
 
