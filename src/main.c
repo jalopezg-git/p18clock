@@ -289,7 +289,7 @@ SIGHANDLERNAKED(_tmr1_handler)
 }
 // clang-format on
 
-#define INT0_UNMASK_TIMEOUT 7
+#define INT0_UNMASK_TIMEOUT 14
 /// INT0 interrupt is externally triggered on RB0/INT0 pin.  RB0:RB3 is
 /// (indirectly) driven by push buttons, and thus requires some debouncing
 /// logic. In particular, `_int0_handler` masks INT0 interrupts for some
