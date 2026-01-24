@@ -1,7 +1,7 @@
 /*
  * main.c - p18clock source file
  *
- * Copyright (C) 2011-2025  Javier Lopez-Gomez
+ * Copyright (C) 2011-2026  Javier Lopez-Gomez
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -96,23 +96,27 @@ __CONFIG(__IDLOC2, 4);
 
 #define UNDEF ((unsigned char)-1)
 
-/// Base delay for re-queueing last keystroke, in Timer3 ticks after prescaler.
-/// The effective delay can be adjusted by changing Timer3 prescaler. Default to
-/// initial repetition after 1s; all other repetitions happen every 0.125s.
-#define INPUT_REP_DELAY_BASE 4096
-#define INPUT_REP_PRESCALER_INITIAL 0x3
-#define INPUT_REP_PRESCALER 0x1
-
 /// Interval (in seconds) that separates two LM35 samples.
 #define TEMPERATURE_INTERVAL 20
 
 // Interval (in minutes) before entering vertical scroll in AUTO mode.
 #define AUTO_INTERVAL 5
 
-/* PWM 2.44khz@50 (Fosc=8mhz) */
+/* PWM 2.44khz@50 (Fosc=8mhz).  See Sec. 14.4 'CAPTURE/COMPARE/PWM (CCP)
+ * MODULES', PWM Mode in the PIC18F2X1X/4X1X datasheet for further information.
+ */
 #define CCP1_PR2 0xcb
 #define CCP1_R 0x066
-#define CCP1_T2PS 0x01
+#define T2CON_PRESCALE 0x01
+
+/// Base configuration for re-queueing last keystroke.  Timer2 postscale only
+/// impacts interrupt-on-overflow and is not used in determination of PWM
+/// frequency (see note in datasheet, Sec. 14.4).
+/// The frequency after the postscale is ~152.5 Hz, i.e. the first repetition
+/// will happen after ~1s; the rest after ~0.1s.
+#define T2CON_POSTSCALE 0x0f
+#define INPUT_REP_DELAY_INITIAL 152
+#define INPUT_REP_DELAY 15
 
 LEDMTX_BEGIN_MODULES_INIT
 LEDMTX_MODULE_INIT(scrollstr)
@@ -165,15 +169,15 @@ DECLARE_RBUF(_mbuf, 32)
 // # Summary of PIC peripheral usage:
 // - Timer0: used by libledmtx ISR and INT0 interrupt unmasking
 // - Timer1: used by RTC; external 32.768 kHz clock
-// - Timer2/CCP1: used by CCP1 module in PWM mode (for buzzer)
-// - Timer3: used for keystroke repetition
+// - Timer2/CCP1: used by CCP1 module in PWM mode (buzzer) / keystroke re-queue
+// - Timer3: unused / reserved
 //
 // # External interrupt sources:
 // - INT0: user input (keystroke)
 DEF_INTHIGH(_high_int)
 DEF_HANDLER(SIG_TMR1, _tmr1_handler)
 DEF_HANDLER(SIG_INT0, _int0_handler)
-DEF_HANDLER(SIG_TMR3, _tmr3_handler)
+DEF_HANDLER(SIG_TMR2, _tmr2_handler)
 END_DEF
 
 DEF_INTLOW(_low_int)
@@ -296,6 +300,7 @@ SIGHANDLERNAKED(_tmr1_handler)
 /// time after which they are enabled again.  This interval is given by
 /// `INT0_UNMASK_TIMEOUT`.
 static volatile unsigned char _int0_timeout;
+static volatile unsigned char _input_rep_timeout;
 
 /// Queue user input (4 LSb of PORTB) in the `_mbuf` message buffer.
 // clang-format off
@@ -332,12 +337,10 @@ SIGHANDLERNAKED(_int0_handler)
   movff		_PREINC1, _FSR0L	; pop FSR0x
   movff		_PREINC1, _FSR0H
 
-  movlw		((0xffff - INPUT_REP_DELAY_BASE) >> 8)
-  movwf		_TMR3H, 0
-  movlw		((0xffff - INPUT_REP_DELAY_BASE) & 0xff)
-  movwf		_TMR3L, 0
-  movlw		(0x83 | (INPUT_REP_PRESCALER_INITIAL << 3))
-  movwf		_T3CON, 0
+  movlw		INPUT_REP_DELAY_INITIAL
+  banksel	__input_rep_timeout
+  movwf		__input_rep_timeout
+  bsf		_T2CON, 2, 0
 @int0__toggle_edge:
   bcf		_INTCON, 4, 0		; mask INT0 interrupt
   btg		_INTCON2, 6, 0		; toggle edge
@@ -348,19 +351,22 @@ SIGHANDLERNAKED(_int0_handler)
 
   ;; Triggered due to rising edge, i.e. key release
 @int0__rising_edge:
-  bcf		_T3CON, 0, 0
+  bcf		_T2CON, 2, 0
   bra		@int0__toggle_edge
   __endasm;
 }
 // clang-format on
 
 // clang-format off
-SIGHANDLERNAKED(_tmr3_handler)
+SIGHANDLERNAKED(_tmr2_handler)
 {
   __asm
-  bcf		_PIR2, 1, 0		; TMR3IF ack interrupt
-  btfsc		_PORTB, 0, 0		; INT0 pin driven high, i.e. key released; stop Timer3
-  bra		@tmr3__stop
+  bcf		_PIR1, 1, 0		; TMR2IF ack interrupt
+  btfsc		_PORTB, 0, 0		; INT0 pin driven high, i.e. key released; stop Timer2
+  bra		@tmr2__stop
+  banksel	__input_rep_timeout
+  decfsz	__input_rep_timeout, f	; return if `--_input_rep_timeout != 0`
+  retfie	1
 
   movff		_FSR0H, _POSTDEC1	; push FSR0x
   movff		_FSR0L, _POSTDEC1
@@ -368,16 +374,13 @@ SIGHANDLERNAKED(_tmr3_handler)
   movff		_PREINC1, _FSR0L	; pop FSR0x
   movff		_PREINC1, _FSR0H
 
-  movlw		((0xffff - INPUT_REP_DELAY_BASE) >> 8)
-  movwf		_TMR3H, 0
-  movlw		((0xffff - INPUT_REP_DELAY_BASE) & 0xff)
-  movwf		_TMR3L, 0
-  movlw		(0x83 | (INPUT_REP_PRESCALER << 3))
-  movwf		_T3CON, 0
+  movlw		INPUT_REP_DELAY
+  banksel	__input_rep_timeout
+  movwf		__input_rep_timeout
   retfie	1
 
-@tmr3__stop:
-  bcf		_T3CON, 0, 0
+@tmr2__stop:
+  bcf		_T2CON, 2, 0
   retfie	1
   __endasm;
 }
@@ -431,14 +434,13 @@ void uc_init(void) {
   PIE1bits.TMR1IE = 1;
   IPR1bits.TMR1IP = 1;
 
-  /* Timer3 */
-  PIE2bits.TMR3IE = 1;
-  IPR2bits.TMR3IP = 1;
-
+  /* Timer2 / CCP1 */
   PR2 = CCP1_PR2;
   CCPR1L = (CCP1_R >> 2);
   CCP1CON = (CCP1_R & 0x03) << 4;
-  T2CON = (CCP1_T2PS & 0x03);
+  T2CON = (T2CON_POSTSCALE << 3) | (T2CON_PRESCALE & 0x03);
+  PIE1bits.TMR2IE = 1;
+  IPR1bits.TMR2IP = 1;
 
   ledmtx_init(LEDMTX_INIT_CLEAR | LEDMTX_INIT_TMR0, LEDMTX__DEFAULT_WIDTH,
               LEDMTX__DEFAULT_HEIGHT, LEDMTX__DEFAULT_TMR0H,
@@ -539,6 +541,7 @@ static struct ledmtx_scrollstr_desc _scroll_desc = {2,
 
 #define ENABLE_BUZZER()                                                        \
   do {                                                                         \
+    PIE1bits.TMR2IE = 0;                                                       \
     T2CONbits.TMR2ON = 1;                                                      \
     CCP1CON |= 0x0c;                                                           \
   } while (0)
@@ -547,6 +550,7 @@ static struct ledmtx_scrollstr_desc _scroll_desc = {2,
   do {                                                                         \
     CCP1CON &= 0xf0;                                                           \
     T2CONbits.TMR2ON = 0;                                                      \
+    PIE1bits.TMR2IE = 1;                                                       \
   } while (0)
 
 #define BEEP()                                                                 \
