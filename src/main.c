@@ -380,6 +380,7 @@ SIGHANDLERNAKED(_tmr2_handler)
   retfie	1
 
 @tmr2__stop:
+  bcf		_INTCON2, 6, 0		; restore INTEDG0 (falling edge)
   bcf		_T2CON, 2, 0
   retfie	1
   __endasm;
