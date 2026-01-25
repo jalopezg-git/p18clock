@@ -40,6 +40,8 @@
 #include <rbuf.h>
 
 #include "ledmtx_modegen_modes.h"
+extern unsigned int __ledmtx_r393c164_E_softpwm_tmr3;
+extern void __ledmtx_r393c164_E_softpwm_duty_end;
 
 /* CONFIG1L */
 #if defined(__SDCC_PIC18F2550)
@@ -94,6 +96,7 @@ __CONFIG(__IDLOC0, 2);
 __CONFIG(__IDLOC1, 0);
 __CONFIG(__IDLOC2, 4);
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #define UNDEF ((unsigned char)-1)
 
 /// Interval (in seconds) that separates two LM35 samples.
@@ -170,7 +173,7 @@ DECLARE_RBUF(_mbuf, 32)
 // - Timer0: used by libledmtx ISR and INT0 interrupt unmasking
 // - Timer1: used by RTC; external 32.768 kHz clock
 // - Timer2/CCP1: used by CCP1 module in PWM mode (buzzer) / keystroke re-queue
-// - Timer3: unused / reserved
+// - Timer3: `r393c164` experimental software-based PWM (brightness adjustment)
 //
 // # External interrupt sources:
 // - INT0: user input (keystroke)
@@ -182,6 +185,7 @@ END_DEF
 
 DEF_INTLOW(_low_int)
 DEF_HANDLER(SIG_TMR0, _tmr0_handler)
+DEF_HANDLER(SIG_TMR3, __ledmtx_r393c164_E_softpwm_duty_end)
 END_DEF
 
 /// Number of days for each month of the year in the Gregorian calendar
@@ -443,6 +447,21 @@ void uc_init(void) {
   PIE1bits.TMR2IE = 1;
   IPR1bits.TMR2IP = 1;
 
+  /* Timer3 */
+  PIE2bits.TMR3IE = 1;
+  IPR2bits.TMR3IP = 0;
+  T3CON = 0xa4;
+#if (~LEDMTX__DEFAULT_T0CON & 0x08)
+#if (LEDMTX__DEFAULT_T0CON & 0x07) > 0x02
+#error Timer3: could not match Timer0 prescaler
+
+#endif /* (LEDMTX__DEFAULT_T0CON & 0x07) > 0x02 */
+  T3CON |= (1 + (LEDMTX__DEFAULT_T0CON & 0x07)) << 3;
+
+#endif /* (~LEDMTX__DEFAULT_T0CON & 0x08) */
+  __ledmtx_r393c164_E_softpwm_tmr3 =
+      (LEDMTX__DEFAULT_TMR0H << 8) | LEDMTX__DEFAULT_TMR0L;
+
   ledmtx_init(LEDMTX_INIT_CLEAR | LEDMTX_INIT_TMR0, LEDMTX__DEFAULT_WIDTH,
               LEDMTX__DEFAULT_HEIGHT, LEDMTX__DEFAULT_TMR0H,
               LEDMTX__DEFAULT_TMR0L, LEDMTX__DEFAULT_T0CON);
@@ -507,6 +526,10 @@ char day_of_week(unsigned char mday, unsigned char mon, unsigned int year) {
 #define STATE_TEMP_SETOFF 0x0b
 #define STATE_ALARM_SETHOUR 0x0c
 #define STATE_ALARM_SETMIN 0x0d
+
+#define is_main_state(x)                                                       \
+  (x == STATE_TIME || x == STATE_DATE || x == STATE_TEMP ||                    \
+   x == STATE_ALARM || x == STATE_AUTO)
 
 /// The current state of the FSM
 static unsigned char _state = STATE_TIME_SETHOUR;
@@ -625,6 +648,24 @@ void __S_time_draw_alarm_indicator(__data char *input) /* __wparam */
   }
 }
 #endif
+
+/// Update display brighness per `input`.  This function assigns to
+/// `__ledmtx_r393c164_E_softpwm_tmr3`; for details, see `ledmtx_r393c164.inc`.
+void __S_set_dpy_brightness(__data char *input) /* __wparam */
+{
+  static unsigned int __tmr3[] = {
+      0xfffc, 0xffc0,
+      0xff84, 0xff48,
+      0xff0c, 0xfed0,
+      0xfe94, (LEDMTX__DEFAULT_TMR0H << 8) | LEDMTX__DEFAULT_TMR0L};
+  static unsigned char current = ARRAY_SIZE(__tmr3) - 1;
+
+  if (*input == B_UP && current < (ARRAY_SIZE(__tmr3) - 1))
+    current++;
+  else if (*input == B_DOWN && current > 0U)
+    current--;
+  __ledmtx_r393c164_E_softpwm_tmr3 = __tmr3[current];
+}
 
 /// ==== Functions that implement behavior for each FSM state ====
 /// The `input` parameter carries user input that may trigger a state change.
@@ -970,7 +1011,10 @@ void main(void) {
         if (_alarm.nack) {
           ACK_ALARM();
         } else {
-          _state_fn[_state](&c);
+          if (is_main_state(_state) && (c == B_UP || c == B_DOWN))
+            __S_set_dpy_brightness(&c);
+          else
+            _state_fn[_state](&c);
           __force_update();
         }
         break;
