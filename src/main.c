@@ -606,7 +606,7 @@ void idle_alarm(void) {
   } while (0)
 
 #define ALTERNATE(arg1, arg2)                                                  \
-  ((TMR1H & 0x40) && (arg != CLASS_INPUT) ? arg1 : arg2)
+  ((TMR1H & 0x40) && !INTCON2bits.INTEDG0 ? arg1 : arg2)
 
 /// `S_time()` helper to draw alarm-enabled indicator near the right edge if
 /// needed.
@@ -926,7 +926,10 @@ static state_func_t __code _state_fn[] = {
 
 void main(void) {
   static signed char c;
-  static unsigned char rcounter = 0xff;
+  static unsigned char tmr1h_prev_value = UNDEF;
+#define __update_period_elapsed()                                              \
+  ((TMR1H ^ tmr1h_prev_value) & 0x20) /* every 0.25s */
+#define __force_update() tmr1h_prev_value = TMR1H ^ 0x20
   static unsigned char temp_measurement_sched_sec = UNDEF;
 
   /* initialisation */
@@ -948,9 +951,9 @@ void main(void) {
       temp_measurement_sched_sec = (_time.sec + TEMPERATURE_INTERVAL) % 60;
     }
 
-    if (++rcounter == 0) {
-      rcounter = 0x51; // Should overflow in roughly 0.25s
+    if (__update_period_elapsed()) {
       _state_fn[_state](MESSAGE_CLASS(c), NULL);
+      tmr1h_prev_value = TMR1H;
     }
     c = rbuf_get(_mbuf);
     if (c != -1) {
@@ -971,7 +974,7 @@ void main(void) {
           ACK_ALARM();
         } else {
           _state_fn[_state](MESSAGE_CLASS(c), &c);
-          rcounter = 0xff; // Forces refresh on next iteration
+          __force_update();
         }
         break;
       }
