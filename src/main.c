@@ -93,8 +93,8 @@ extern void __ledmtx_r393c164_E_softpwm_duty_end;
 
 /* The IDLOC0, IDLOC1, and IDLOC2 bytes store the firmware version */
 __CONFIG(__IDLOC0, 2);
-__CONFIG(__IDLOC1, 0);
-__CONFIG(__IDLOC2, 4);
+__CONFIG(__IDLOC1, 1);
+__CONFIG(__IDLOC2, 0);
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #define UNDEF ((unsigned char)-1)
