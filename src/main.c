@@ -611,7 +611,7 @@ void idle_alarm(void) {
 /// `S_time()` helper to draw alarm-enabled indicator near the right edge if
 /// needed.
 #if defined(__P18CLOCK_LARGE_DISPLAY)
-void __S_time_draw_alarm_indicator(char arg, __data char *input) /* __wparam */
+void __S_time_draw_alarm_indicator(__data char *input) /* __wparam */
 {
   static unsigned char alarm_was_enabled = UNDEF;
   if (input != NULL && *input == B_MODE) {
@@ -632,10 +632,10 @@ void __S_time_draw_alarm_indicator(char arg, __data char *input) /* __wparam */
 /// case, only the display should be refreshed.
 
 /* __wparam uncompatible with function pointers */
-void S_time(char arg, __data char *input) /* __wparam */
+void S_time(__data char *input) /* __wparam */
 {
 #if defined(__P18CLOCK_LARGE_DISPLAY)
-  __S_time_draw_alarm_indicator(arg, input);
+  __S_time_draw_alarm_indicator(input);
 #endif
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
@@ -650,9 +650,8 @@ void S_time(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_date(char arg, __data char *input) /* __wparam */
+void S_date(__data char *input) /* __wparam */
 {
-  (void)arg;
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
     switch (_time.sec & 0x03) {
@@ -682,9 +681,8 @@ void S_date(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_temp(char arg, __data char *input) /* __wparam */
+void S_temp(__data char *input) /* __wparam */
 {
-  (void)arg;
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
     printf(STR_FMT_TEMP, _temperature);
@@ -698,9 +696,8 @@ void S_temp(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_alarm(char arg, __data char *input) /* __wparam */
+void S_alarm(__data char *input) /* __wparam */
 {
-  (void)arg;
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
     if (_alarm.ena) {
@@ -718,20 +715,20 @@ void S_alarm(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_auto(char arg, __data char *input) /* __wparam */
+void S_auto(__data char *input) /* __wparam */
 {
   static unsigned char vscroll_sched_at_min = UNDEF;
   static unsigned char step = 0U;
 
 #if defined(__P18CLOCK_LARGE_DISPLAY)
-  __S_time_draw_alarm_indicator(arg, input);
+  __S_time_draw_alarm_indicator(input);
 #endif
   // Any user input other than B_MODE may be used to manually change viewport.
   if (input == (__data char *)NULL || *input != B_MODE) {
     if (vscroll_sched_at_min == UNDEF)
       vscroll_sched_at_min = _time.min;
     if (step == 0U && (!input && _time.min != vscroll_sched_at_min)) {
-      S_time(arg, input);
+      S_time(input);
       return;
     }
 
@@ -764,7 +761,7 @@ void S_auto(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_time_sethour(char arg, __data char *input) /* __wparam */
+void S_time_sethour(__data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
@@ -782,7 +779,7 @@ void S_time_sethour(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_time_setmin(char arg, __data char *input) /* __wparam */
+void S_time_setmin(__data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_GOTO((ledmtx_font_sz_w + 1) * 2, 0);
@@ -798,7 +795,7 @@ void S_time_setmin(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_date_setmday(char arg, __data char *input) /* __wparam */
+void S_date_setmday(__data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
@@ -814,7 +811,7 @@ void S_date_setmday(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_date_setmon(char arg, __data char *input) /* __wparam */
+void S_date_setmon(__data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
@@ -829,7 +826,7 @@ void S_date_setmon(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_date_setyear(char arg, __data char *input) /* __wparam */
+void S_date_setyear(__data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
@@ -847,7 +844,7 @@ void S_date_setyear(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_temp_setvdd(char arg, __data char *input) /* __wparam */
+void S_temp_setvdd(__data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
@@ -861,7 +858,7 @@ void S_temp_setvdd(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_temp_setoff(char arg, __data char *input) /* __wparam */
+void S_temp_setoff(__data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
@@ -875,7 +872,7 @@ void S_temp_setoff(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_alarm_sethour(char arg, __data char *input) /* __wparam */
+void S_alarm_sethour(__data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_HOME();
@@ -896,7 +893,7 @@ void S_alarm_sethour(char arg, __data char *input) /* __wparam */
   }
 }
 
-void S_alarm_setmin(char arg, __data char *input) /* __wparam */
+void S_alarm_setmin(__data char *input) /* __wparam */
 {
   if (input == (__data char *)NULL) {
     LEDMTX_GOTO((ledmtx_font_sz_w + 1) * 2, 0);
@@ -916,7 +913,7 @@ void S_alarm_setmin(char arg, __data char *input) /* __wparam */
   }
 }
 
-typedef void (*state_func_t)(char, __data char *) /* __wparam */;
+typedef void (*state_func_t)(__data char *) /* __wparam */;
 
 static state_func_t __code _state_fn[] = {
     S_time,          S_date,         S_temp,        S_alarm,
@@ -952,7 +949,7 @@ void main(void) {
     }
 
     if (__update_period_elapsed()) {
-      _state_fn[_state](MESSAGE_CLASS(c), NULL);
+      _state_fn[_state](NULL);
       tmr1h_prev_value = TMR1H;
     }
     c = rbuf_get(_mbuf);
@@ -973,7 +970,7 @@ void main(void) {
         if (_alarm.nack) {
           ACK_ALARM();
         } else {
-          _state_fn[_state](MESSAGE_CLASS(c), &c);
+          _state_fn[_state](&c);
           __force_update();
         }
         break;
