@@ -5,6 +5,8 @@ p18clock cuenta con cuatro botones de control.  Específicamente,
 - `UP`: incrementar valor / incrementa el brillo.
 - `DOWN`: decrementar valor / incrementa el brillo.
 
+![p18clock_pushb PCB](./p18clock_pushb.png)
+
 > [!TIP]
 > Nótese que los botones pueden ser presionados y mantenidos, lo que después de un retardo simulará presiones repetidas.
 

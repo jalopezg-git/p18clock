@@ -5,10 +5,12 @@ p18clock exposes four control switches.  Specifically,
 - `UP`: increment value having input focus / increase brightness.
 - `DOWN`: decrement value having input focus / decrease brightness.
 
+![p18clock_pushb PCB](./p18clock_pushb.png)
+
 > [!TIP]
 > Note that buttons may be pressed and held, which after some delay will simulate repeated switch presses.
 
-## p18clock booting
+## p18clock boot
 During boot, p18clock will produce a short beep and will display the firmware version and the underlying libledmtx build in use.  It then enters [Time setting mode](#time-setting-mode).
 
 ## Display modes
