@@ -7573,7 +7573,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "12pF"
+		(property "Value" "22pF"
 			(at 121.92 54.6162 0)
 			(effects
 				(font
@@ -7923,7 +7923,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "22pF"
+		(property "Value" "12pF"
 			(at 137.16 156.2162 0)
 			(effects
 				(font
@@ -8799,7 +8799,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "22pF"
+		(property "Value" "12pF"
 			(at 144.78 156.2162 0)
 			(effects
 				(font
@@ -9501,7 +9501,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "12pF"
+		(property "Value" "22pF"
 			(at 129.54 54.6162 0)
 			(effects
 				(font
