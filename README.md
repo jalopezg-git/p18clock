@@ -14,6 +14,8 @@ p18clock includes the following features:
 
 The clock is based on a finite state machine that is described in the following diagram.
 It has four push buttons: MODE, SET, UP, DOWN.  MODE triggers the transition between main states.  SET can be used to cycle across sub-states.  UP/DOWN can be used to change the value for a setting.
+For more information, see the [p18clock user manual](https://github.com/jalopezg-git/p18clock/blob/master/user-manual/INDEX-EN.md).
+
 ```
                                              B_MODE
         ,-----------------------------------------------------------------------------------.
@@ -54,7 +56,7 @@ _ALARM_SETHOUR: Set alarm time - hour		_ALARM_SETMIN: Set alarm time - minutes
 ```
 
 ## Compiling
-p18clock requires a libledmtx installation in the `$HOME/.local/libledmtx/` directory:
+In addition to [sdcc](https://sdcc.sourceforge.net/), p18clock requires a libledmtx installation in the `$HOME/.local/libledmtx/` directory:
 ```bash
 $ git clone --depth=1 https://github.com/jalopezg-git/libledmtx/
 $ cd libledmtx/
@@ -70,15 +72,16 @@ $ make P18CLOCK_LANG=EN # or `P18CLOCK_LANG=ES` to use Spanish translation
 ```
 
 Additional arguments can be passed to `make` in order to enable/disable specific features; specifically,
-- `LARGE_DISPLAY=1`: build for latest p18clock hardware (builtin 40x8 display).
+- `LARGE_DISPLAY=1`: build for latest p18clock hardware (builtin 40x8 display); if not defined, build targets a 32x7 display.
 - `REVERSE_PUSHB_ORDER=1`: define if the PCB has push buttons laid out in reverse order.
+- `P18F2550=1`: define to target the PIC18F2550 MCU (still in the original prototype).
 
 ## Hardware
 ![p18clock hardware](doc/hardware.jpg)
 
-A sketch of the wiring can be found [here](https://github.com/jalopezg-git/p18clock/blob/master/doc/hardware.txt).
-The display is made up from six 5x7 Kingbright TC12-11SRWA parts where row pins have been physically connected, thus resulting in a 30x7 dot matrix.
-For the LED dot matrix display, refer to the libledmtx [hardware description](https://github.com/jalopezg-git/libledmtx/#hardware).
+For the KiCAD project see [here](https://github.com/jalopezg-git/p18clock/tree/master/hardware/kicad/), which includes both the latest circuit schematic and the PCB layout.
+The display is made up of five 8x8 KYX-1088B parts where row pins have been physically connected, thus resulting in a 40x8 LED matrix.
+For more details, refer to the libledmtx [hardware description](https://github.com/jalopezg-git/libledmtx/#hardware).
 
 Push buttons are wired to a 74HC148 binary encoder whose output is connected to RB<1:3>; this makes it possible to have up to 7 push buttons using few I/O pins.
 A change on a PORTB pin triggers a INT0 interrupt.
